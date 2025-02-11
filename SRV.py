@@ -21,6 +21,7 @@ def main():
             print(f"Client connected: {client_address}")
             try:
                 while True:
+                    b = True
 
 
             except socket.error as err:
