@@ -1,7 +1,9 @@
 import socket
 import logging
 import pygame
+import protocol
 from protocol import protocol_send
+from protocol import protocol_receive
 
 IP = '127.0.0.1'
 PORT = 2222
@@ -33,10 +35,10 @@ def play_song(song_name):
 def get_song(client_socket, song):
     data = [song]
     protocol_send(client_socket, "get", data)
-    data = client_socket.recv(500000)
-    file_name = song + ".mp3"
+    cmd, data = protocol_receive(client_socket)
+    file_name = data[0]
     with open(file_name, 'wb') as file:
-        file.write(data)
+        file.write(data[1])
     print(f"File saved as {file_name}")
     play_song(file_name)
 

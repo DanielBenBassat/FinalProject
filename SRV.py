@@ -3,6 +3,7 @@ import threading
 import protocol
 import logging
 import os
+import music_db
 
 
 
@@ -18,9 +19,10 @@ task_start = 0
 found = False
 
 
-def handle_client(client_socket, address):
+def handle_client(db, client_socket, address):
     try:
-
+        cmd, data = protocol.protocol_receive(client_socket)
+        if
 
     except socket.error:
         logging.debug(f"[ERROR] Connection with {address} lost.")
@@ -34,9 +36,10 @@ def main():
 
         while True:
             try:
+                db = music_db("my_db.db")
                 client_socket, client_address = server.accept()
                 CLIENTS_SOCKETS.append(client_socket)
-                thread = threading.Thread(target=handle_client, args=(client_socket, client_address))
+                thread = threading.Thread(target=handle_client, args=(db, client_socket, client_address))
                 THREADS.append(thread)
                 thread.start()
                 logging.debug(f"[ACTIVE CONNECTIONS] {threading.active_count() - 1}")

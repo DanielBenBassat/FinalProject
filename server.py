@@ -1,6 +1,7 @@
 import socket
 import os
-from protocol import receive_protocol
+from protocol import protocol_receive
+from protocol import protocol_send
 
 FOLDER = r"C:\musicCyber"
 IP = '127.0.0.1'
@@ -15,11 +16,12 @@ def send_song(client_socket, song_name):
     if os.path.exists(song_path) and os.path.isfile(song_path):
         with open(song_path, "rb") as file:
             song_bytes = file.read()
-        client_socket.send(song_bytes)
+        data = [song_name, song_bytes]
+        protocol_send(client_socket, "get", data)
         print("File sent successfully!")
     else:
         error_msg = "not found"
-        client_socket.send(error_msg.encode())
+        protocol_send(client_socket, "get", [error_msg])
         print("File not found: " + song_name)
 
 
@@ -27,7 +29,7 @@ def add_song(song_byte, song_name):
     file_name = song_name + ".mp3"
     file_path = os.path.join(FOLDER, file_name)
     with open(file_path, 'wb') as file:
-        file.write(song_byte.encode())
+        file.write(song_byte)
 
 
 def main():
@@ -41,9 +43,7 @@ def main():
             print(f"Client connected: {client_address}")
             try:
                 while True:
-                    msg = receive_protocol(client_socket)
-                    cmd = msg[0]
-                    data = msg[1]
+                    cmd, data = protocol_receive(client_socket)
                     if cmd == "get": # [name]
                         song_name = data[0]
                         send_song(client_socket, song_name)

@@ -1,5 +1,6 @@
 import sqlite3
 from database import DataBase
+import random
 
 class MusicDB(DataBase):
     def __init__(self, name):
@@ -35,7 +36,6 @@ class MusicDB(DataBase):
     #login
     def verified_user(self, user_id, username, password):
         """
-
         :param user_id:
         :param username:
         :param password:
@@ -52,11 +52,14 @@ class MusicDB(DataBase):
 
 
     def find_address(self, address_dict):
+        index = random.randint(0, len(address_dict))
+        return address_dict[index]
+
 
     #post song
     def add_song(self, song_name, artist, address_list):
-        data = {"name" : song_name, "artist": artist}
-        address = find_address(address_list)
+        data = {"name": song_name, "artist": artist}
+        address = self.find_address(address_list)
         data["address1"] = address
         data["setting1"] = "pending"
         self.insert("users", data)
