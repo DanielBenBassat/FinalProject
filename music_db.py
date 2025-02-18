@@ -24,9 +24,8 @@ class MusicDB(DataBase):
                             "playlists_name": "TEXT NOT NULL",
                             "user": "TEXT NOT NULL",
                             "songs": "TEXT"}
-        foreign_key = ("user","users",id)
+        foreign_key =[("user","users","id")]
         self.create_table("playlists", playlists_columns, foreign_key)
-
 
 #signup
     def add_user(self, username, password):
@@ -53,7 +52,7 @@ class MusicDB(DataBase):
 
     def find_address(self, address_dict):
         index = random.randint(0, len(address_dict))
-        return address_dict[index]
+        return address_dict[0]
 
 
     #post song
@@ -62,13 +61,15 @@ class MusicDB(DataBase):
         address = self.find_address(address_list)
         data["address1"] = address
         data["setting1"] = "pending"
-        self.insert("users", data)
-        return address
+        self.insert("songs", data)
+        song_id = self.select("songs", "id",{"name": song_name, "artist": artist} )
+        return song_id, address
 
 
     #get
     def get_address(self, song_id):
         song = self.select("songs", '*', {"id": song_id})
+        print(song)
         if song is not None:
             add1 = song[3]
             set1 = song [4]

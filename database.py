@@ -33,6 +33,9 @@ class DataBase:
 
         # בניית הגדרת מפתחות זרים אם יש
         foreign_keys_definitions = ""
+        #col = foreign_keys[0]
+        #ref_table = foreign_keys[1]
+        #ref_col = foreign_keys[2]
         if foreign_keys:
             fk_clauses = [f"FOREIGN KEY ({col}) REFERENCES {ref_table}({ref_col})"
                           for col, ref_table, ref_col in foreign_keys]
@@ -54,7 +57,7 @@ class DataBase:
 
         try:
             insert_query = f"INSERT INTO {table_name} ({fields}) VALUES ({placeholders})"
-            self.cursor.execute(insert_query, tuple(data.values()))  # Pass values safely
+            self.cursor.execute(insert_query, list(data.values()))  # Pass values safely
             self.conn.commit()
         except sqlite3.IntegrityError as error:
             print(error)

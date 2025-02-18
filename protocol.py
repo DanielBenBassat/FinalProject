@@ -2,6 +2,7 @@
 
 def protocol_send(my_socket, cmd, data):
     msg = cmd + "!" + str(len(data))
+    print("send: " + msg)
     msg = msg.encode()
     for i in data:
         if isinstance(i, bytes):
@@ -9,8 +10,10 @@ def protocol_send(my_socket, cmd, data):
             encoded_data = i
         else:
             sign = 's'
+            print(i)
             encoded_data = str(i).encode()
-        temp = sign + str(len(i)) + "!"
+        temp = sign + str(len(str(i))) + "!"
+        print(temp)
         msg += temp.encode() + encoded_data
 
     my_socket.send(msg)

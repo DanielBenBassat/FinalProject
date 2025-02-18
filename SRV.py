@@ -3,7 +3,7 @@ import threading
 import protocol
 import logging
 import os
-import music_db
+from music_db import MusicDB
 
 
 
@@ -17,15 +17,27 @@ NUM_PER_CORE = 10000
 lock = threading.Lock()
 task_start = 0
 found = False
+ADDRESS_LIST = [("127.0.0.1", 2222)]
 
 
-def handle_client(db, client_socket, address):
+def handle_client(client_socket):
     try:
+        db = MusicDB("my_db.db")
         cmd, data = protocol.protocol_receive(client_socket)
-        if
+        if cmd == "gad": # [id]
+            id = data[0]
+            server_address = db.get_address(id)
+            protocol.protocol_send(client_socket, "gad", [server_address])
+
+        elif cmd == "pad": # [name ,artist]
+            name = data[0]
+            artist = data[1]
+            id, address = db.add_song(name, artist, ADDRESS_LIST)
+            protocol.protocol_send(client_socket, "pad", [id, address])
+
 
     except socket.error:
-        logging.debug(f"[ERROR] Connection with {address} lost.")
+        logging.debug(f"[ERROR] Connection  lost.")
 
 
 def main():
@@ -36,10 +48,10 @@ def main():
 
         while True:
             try:
-                db = music_db("my_db.db")
+
                 client_socket, client_address = server.accept()
                 CLIENTS_SOCKETS.append(client_socket)
-                thread = threading.Thread(target=handle_client, args=(db, client_socket, client_address))
+                thread = threading.Thread(target=handle_client, args=([client_socket]))
                 THREADS.append(thread)
                 thread.start()
                 logging.debug(f"[ACTIVE CONNECTIONS] {threading.active_count() - 1}")
