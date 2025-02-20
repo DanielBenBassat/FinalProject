@@ -43,14 +43,17 @@ def main():
             print(f"Client connected: {client_address}")
             try:
                 while True:
-                    cmd, data = protocol_receive(client_socket)
-                    if cmd == "get": # [name]
-                        song_name = data[0]
-                        send_song(client_socket, song_name)
-                    elif cmd == "pst": # [name ,file]
-                        name = data[0]
-                        file = data[1]
-                        add_song(file, name)
+                    msg = protocol_receive(client_socket)
+                    if msg != None:
+                        cmd =msg[0]
+                        data = msg[1]
+                        if cmd == "get": # [name]
+                            song_name = data[0]
+                            send_song(client_socket, song_name)
+                        elif cmd == "pst": # [name ,file]
+                            name = data[0]
+                            file = data[1]
+                            add_song(file, name)
 
             except socket.error as err:
                 print('Socket error on client connection: ' + str(err))

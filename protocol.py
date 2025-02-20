@@ -1,6 +1,7 @@
 
 
 def protocol_send(my_socket, cmd, data):
+    print(my_socket.getsockname())
     msg = cmd + "!" + str(len(data))
     print("send: " + msg)
     msg = msg.encode()
@@ -47,7 +48,6 @@ def protocol_receive(my_socket):
 
             if sign == 'b':
                 item = b''
-                #for j in range(int(i_length)):
                 item = my_socket.recv(int(i_length))
             elif sign == 's':
                 item = ''
@@ -55,7 +55,9 @@ def protocol_receive(my_socket):
                     item += my_socket.recv(1).decode()
                 print("item: " + item)
             data.append(item)
-
-        return cmd, data
+            print("cmd: " + cmd)
+            print(data[0])
+            result = (cmd, data)
+        return result
 
 

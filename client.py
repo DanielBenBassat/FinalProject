@@ -13,7 +13,7 @@ LOG_LEVEL = logging.DEBUG
 LOG_DIR = 'log'
 LOG_FILE = LOG_DIR + '/client.log'
 
-SONGS_ID_DICT = {"shape": 1, "help": 2}
+SONGS_ID_DICT = {"bad": 1, "help": 2}
 
 def stop_song():
     pygame.mixer.music.stop()
@@ -40,8 +40,12 @@ def get_address(client_socket, song_id):
     return server_address
 
 def get_song(song_id, server_address):
-    media_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-    media_socket.connect(server_address)
+    try:
+        media_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        media_socket.connect(server_address)
+        print("✅ Connection successful!")
+    except socket.error as e:
+        print(f"❌ Connection failed: {e}")
 
     data = [song_id]
     protocol_send(media_socket, "get", data)
@@ -56,19 +60,21 @@ def get_song(song_id, server_address):
 def get_address_new_song(client_socket, song_name, artist):
     protocol_send(client_socket, "pad", [song_name, artist])
     cmd,data= protocol_receive(client_socket)
-    id = data[0]
-    address = data[1]
+    id = int(data[0])
+    ip = data[1]
+    port = int(data[2])
+    address = (ip, port)
     return id, address
 
 
-def post_song(client_socket, file_path, id, address):
+def post_song(file_path, id, address):
     media_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
     media_socket.connect(address)
 
     with open(file_path, "rb") as file:
         song_bytes = file.read()
     data = [id, song_bytes]
-    protocol_send(client_socket, "pst", data)
+    protocol_send(media_socket, "pst", data)
 
 
 def main():
@@ -86,11 +92,18 @@ def main():
                     media_server_address = get_address(main_socket, song_id)
                     get_song(song_id, media_server_address)
                 elif cmd == "post":
-                    song_name = input("Enter song's name: ")
-                    artist = input("Enter artist's name: ")
-                    file_path = input("Enter file path: ")
+                    #song_name = input("Enter song's name: ")
+                    #artist = input("Enter artist's name: ")
+                    #file_path = input("Enter file path: ")
+                    song_name = "shape"
+                    artist = "ed"
+                    file_path = r"C:\newSongs\shape.mp3"
+
                     song_id, media_server_address = get_address_new_song(main_socket, song_name, artist)
-                    post_song(main_socket, file_path, song_id, media_server_address)
+                    #second_thread = threading.Thread(target=post_song(), args=())  # יצירת הטרד השני
+                    #second_thread.start()  # הפעלת הטרד השני
+                    #second_thread.join()
+                    post_song(file_path, song_id, media_server_address)
 
             else:
                     print("Try again")
@@ -106,22 +119,14 @@ def main():
         print(f"Received socket error: {err}")
 
 def start_client():
-    main_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-    try:
-        main_socket.connect(MAIN_SERVER_ADDR)
-        print("[Client] Connected to Main Server.")
+    print("🔌 Starting the client...")
+    client_thread = threading.Thread(target=main(), args=())
+    client_thread.start()  # הפעלת הטרד הראשון (החיבור לשרת הראשון)
 
-        # Start a thread to listen for messages from the main server
-        main_thread = threading.Thread(target=handle_main_server_socket, args=(main_socket,))
-        #main_thread.daemon = True  # Ensures the thread exits when the main program ends
-        main_thread.start()
+    # ניתן להוסיף פעולות נוספות בלקוח בזמן שהטרד הראשון פועל
+    # לדוג' הפסקה לחיבור שני, פעולות UI או עוד טרדים
 
-        # Keep the client alive
-        while True:
-            pass
-
-    except ConnectionError:
-        print("[Error] Failed to connect to main server.")
+    client_thread.join()
 
 if __name__ == "__main__":
     main()

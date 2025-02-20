@@ -54,7 +54,8 @@ class DataBase:
     def insert(self, table_name, data):
         fields = ", ".join(data.keys())
         placeholders = ", ".join(["?"] * len(data))  # "?, ?"
-
+        for key, value in data.items():
+            print(f"Key: {key}, Type: {type(value)}, Value: {value}")
         try:
             insert_query = f"INSERT INTO {table_name} ({fields}) VALUES ({placeholders})"
             self.cursor.execute(insert_query, list(data.values()))  # Pass values safely
@@ -69,7 +70,7 @@ class DataBase:
         values = []
         if where_condition != {}:
             conditions = " AND ".join([f"{key}=?" for key in where_condition.keys()])
-            select_query += f" WHERE {conditions}"
+            select_query += f" WHERE {conditions} lIMIT 1"
             values = list(where_condition.values())  # Values for placeholders
 
         try:

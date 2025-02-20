@@ -33,7 +33,9 @@ def handle_client(client_socket):
             name = data[0]
             artist = data[1]
             id, address = db.add_song(name, artist, ADDRESS_LIST)
-            protocol.protocol_send(client_socket, "pad", [id, address])
+            id = id[0][0]
+            print(id, address)
+            protocol.protocol_send(client_socket, "pad", [id, address[0], address[1]])
 
 
     except socket.error:

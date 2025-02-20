@@ -5,13 +5,15 @@ import random
 class MusicDB(DataBase):
     def __init__(self, name):
         super().__init__(name)
-        songs_columns = {"id" : "INTEGER PRIMARY KEY AUTOINCREMENT",
-                        "name": "TEXT NOT NULL",
-                        "artist" : "TEXT NOT NULL",
-                        "address1" :  "TEXT NOT NULL",
-                        "setting1": "TEXT NOT NULL",
-                        "address2": "TEXT",
-                        "setting2": "TEXT"}
+        songs_columns = {"id": "INTEGER PRIMARY KEY AUTOINCREMENT",
+                            "name": "TEXT NOT NULL",
+                            "artist" : "TEXT NOT NULL",
+                            "IP1" :  "TEXT NOT NULL",
+                            "port1": "INTEGER NOT NULL",
+                            "setting1": "TEXT NOT NULL",
+                            "IP2" : "TEXT ",
+                            "port2": "INTEGER",
+                            "setting2": "TEXT"}
         self.create_table("songs", songs_columns)
 
         users_columns = {"id" : "INTEGER PRIMARY KEY AUTOINCREMENT",
@@ -59,10 +61,12 @@ class MusicDB(DataBase):
     def add_song(self, song_name, artist, address_list):
         data = {"name": song_name, "artist": artist}
         address = self.find_address(address_list)
-        data["address1"] = address
+        data["IP1"] = address[0]
+        data["port1"] = address[1]
         data["setting1"] = "pending"
         self.insert("songs", data)
-        song_id = self.select("songs", "id",{"name": song_name, "artist": artist} )
+        song_id = self.select("songs", "id", {"name": song_name, "artist": artist})
+        print(song_id)
         return song_id, address
 
 
