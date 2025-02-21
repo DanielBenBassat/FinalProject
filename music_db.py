@@ -51,7 +51,15 @@ class MusicDB(DataBase):
         else:
             return False, "username"
 
-
+    def all_songs(self):
+        dict = {}
+        songs = self.select("songs", 'id,name,artist')
+        for i in songs:
+            name = i[1]
+            artist = i[2]
+            id = i[0]
+            dict[name] = (artist, id)
+        return dict
     def find_address(self, address_dict):
         index = random.randint(0, len(address_dict))
         return address_dict[0]
@@ -61,28 +69,33 @@ class MusicDB(DataBase):
     def add_song(self, song_name, artist, address_list):
         data = {"name": song_name, "artist": artist}
         address = self.find_address(address_list)
+        ip = address[0]
+        port = address[1]
         data["IP1"] = address[0]
         data["port1"] = address[1]
         data["setting1"] = "pending"
         self.insert("songs", data)
         song_id = self.select("songs", "id", {"name": song_name, "artist": artist})
         print(song_id)
-        return song_id, address
+        return song_id, ip, port
 
 
     #get
     def get_address(self, song_id):
         song = self.select("songs", '*', {"id": song_id})
+        song = song[0]
         print(song)
         if song is not None:
-            add1 = song[3]
-            set1 = song [4]
-            add2 = song[5]
-            set2 = song[6]
-            if set1 == "verified":
-                return add1
+            ip1 = song[3]
+            port1 = song[4]
+            set1 = song[5]
+            ip2 = song[6]
+            port2 = song[7]
+            set2 = song[8]
+            if set1 == "verified" or set1 == "pending":
+                return ip1, port1
             elif set2 == "verified":
-                return add2
+                return ip2, port2
             else:
                 return None
         else:

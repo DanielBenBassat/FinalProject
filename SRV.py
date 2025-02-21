@@ -1,3 +1,4 @@
+import pickle
 import socket
 import threading
 import protocol
@@ -21,25 +22,47 @@ ADDRESS_LIST = [("127.0.0.1", 2222)]
 
 
 def handle_client(client_socket):
+
     try:
         db = MusicDB("my_db.db")
-        cmd, data = protocol.protocol_receive(client_socket)
-        if cmd == "gad": # [id]
-            id = data[0]
-            server_address = db.get_address(id)
-            protocol.protocol_send(client_socket, "gad", [server_address])
+        dict = db.all_songs()
+        dict = pickle.dumps(dict)
+        protocol.protocol_send(client_socket, "str", [dict])
 
-        elif cmd == "pad": # [name ,artist]
-            name = data[0]
-            artist = data[1]
-            id, address = db.add_song(name, artist, ADDRESS_LIST)
-            id = id[0][0]
-            print(id, address)
-            protocol.protocol_send(client_socket, "pad", [id, address[0], address[1]])
+        while True:  # 🔄 לולאה שממשיכה לקרוא הודעות מהלקוח
+            try:
+                received = protocol.protocol_receive(client_socket)
+                if received is None:
+                    logging.debug("[ERROR] Received None, closing connection.")
+                    break  # יציאה מהלולאה אם הלקוח התנתק
 
+                cmd, data = received
+                logging.debug(f"Received command: {cmd}, Data: {data}")
 
-    except socket.error:
-        logging.debug(f"[ERROR] Connection  lost.")
+                if cmd == "gad":  # [id]
+                    id = data[0]
+                    result = db.get_address(id)
+                    if result:
+                        ip, port = result
+                        protocol.protocol_send(client_socket, "gad", [ip, port])
+                    else:
+                        protocol.protocol_send(client_socket, "error", ["ID not found"])
+
+                elif cmd == "pad":  # [name, artist]
+                    name, artist = data
+                    id, ip, port = db.add_song(name, artist, ADDRESS_LIST)
+                    id = id[0][0] if id else -1  # בדיקה שה-id חוקי
+                    protocol.protocol_send(client_socket, "pad", [id, ip, port])
+
+            except Exception as e:
+                logging.error(f"[ERROR] Exception in client handling: {e}")
+                break  # יציאה אם יש שגיאה
+
+    except socket.error as e:
+        logging.error(f"[ERROR] Socket error: {e}")
+    finally:
+        client_socket.close()
+        logging.debug("Client disconnected")
 
 
 def main():

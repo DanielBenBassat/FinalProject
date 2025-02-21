@@ -1,10 +1,10 @@
 import socket
 import logging
 import pygame
-import protocol
 from protocol import protocol_send
 from protocol import protocol_receive
 import threading
+import pickle
 
 MAIN_SERVER_ADDR = ("127.0.0.1", 5555)
 
@@ -13,7 +13,7 @@ LOG_LEVEL = logging.DEBUG
 LOG_DIR = 'log'
 LOG_FILE = LOG_DIR + '/client.log'
 
-SONGS_ID_DICT = {"bad": 1, "help": 2}
+#SONGS_ID_DICT = {"shape": 1, "help": 2}
 
 def stop_song():
     pygame.mixer.music.stop()
@@ -36,8 +36,10 @@ def play_song(song_name):
 def get_address(client_socket, song_id):
     protocol_send(client_socket, "gad", [song_id])
     cmd, data = protocol_receive(client_socket)
-    server_address = data[0]
-    return server_address
+    ip = data[0]
+    port = int(data[1])
+    address = (ip, port)
+    return address
 
 def get_song(song_id, server_address):
     try:
@@ -81,6 +83,9 @@ def main():
     try:
         main_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         main_socket.connect(MAIN_SERVER_ADDR)
+        cmd, data = protocol_receive(main_socket)
+        SONGS_ID_DICT = pickle.loads(data[0])
+        print(SONGS_ID_DICT)
         try:
             while True:
                 cmd = input("Enter command: get, post, or exit: ")
@@ -88,16 +93,17 @@ def main():
                     break
                 elif cmd == "get":
                     song = input("Enter song's name: ")
-                    song_id= SONGS_ID_DICT[song]
+                    song_id = SONGS_ID_DICT[song][1]
                     media_server_address = get_address(main_socket, song_id)
+                    print(type(media_server_address))
                     get_song(song_id, media_server_address)
                 elif cmd == "post":
                     #song_name = input("Enter song's name: ")
                     #artist = input("Enter artist's name: ")
                     #file_path = input("Enter file path: ")
-                    song_name = "shape"
-                    artist = "ed"
-                    file_path = r"C:\newSongs\shape.mp3"
+                    song_name = "help"
+                    artist = "beatles"
+                    file_path = r"C:\newSongs\help.mp3"
 
                     song_id, media_server_address = get_address_new_song(main_socket, song_name, artist)
                     #second_thread = threading.Thread(target=post_song(), args=())  # יצירת הטרד השני
