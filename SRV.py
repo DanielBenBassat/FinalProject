@@ -51,7 +51,7 @@ def handle_client(client_socket):
                 elif cmd == "pad":  # [name, artist]
                     name, artist = data
                     id, ip, port = db.add_song(name, artist, ADDRESS_LIST)
-                    id = id[0][0] if id else -1  # בדיקה שה-id חוקי
+                    id = id[0][0]
                     protocol.protocol_send(client_socket, "pad", [id, ip, port])
 
             except Exception as e:
