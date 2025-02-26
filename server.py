@@ -2,6 +2,7 @@ import socket
 import os
 from protocol import protocol_receive
 from protocol import protocol_send
+import threading
 
 FOLDER = r"C:\musicCyber"
 IP = '127.0.0.1'
@@ -32,6 +33,31 @@ def add_song(song_byte, song_name):
         file.write(song_byte)
 
 
+def handle_client(client_socket, client_address):
+    print(f"Client connected: {client_address}")
+    try:
+        while True:
+            msg = protocol_receive(client_socket)
+            if msg is not None:
+                cmd = msg[0]
+                data = msg[1]
+                if cmd == "get": # [name]
+                    song_name = data[0]
+                    send_song(client_socket, song_name)
+                elif cmd == "pst": # [name ,file]
+                    name = data[0]
+                    file = data[1]
+                    add_song(file, name)
+
+    except socket.error as err:
+        print('Socket error on client connection: ' + str(err))
+
+    finally:
+        print("Client disconnected")
+        client_socket.close()
+
+
+
 def main():
     my_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
     try:
@@ -40,33 +66,16 @@ def main():
 
         while True:
             client_socket, client_address = my_socket.accept()
-            print(f"Client connected: {client_address}")
-            try:
-                while True:
-                    msg = protocol_receive(client_socket)
-                    if msg != None:
-                        cmd =msg[0]
-                        data = msg[1]
-                        if cmd == "get": # [name]
-                            song_name = data[0]
-                            send_song(client_socket, song_name)
-                        elif cmd == "pst": # [name ,file]
-                            name = data[0]
-                            file = data[1]
-                            add_song(file, name)
-
-            except socket.error as err:
-                print('Socket error on client connection: ' + str(err))
-
-            finally:
-                print("Client disconnected")
-                client_socket.close()
+            client_thread = threading.Thread(target=handle_client, args=(client_socket,client_address))
+            client_thread.start()
 
     except socket.error as err:
-        print('Socket error on server socket: ' + str(err))
+        print(f'Socket error on server socket: {err}')
 
     finally:
         my_socket.close()
+
+
 
 
 if __name__ == "__main__":

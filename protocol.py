@@ -32,14 +32,13 @@ def protocol_receive(my_socket):
         data = []
         num_of_items = int(num_of_items)
         for i in range(num_of_items):
-
             sign = my_socket.recv(1).decode()
+            print("sign: " + sign)
             i_length = ""
             b = my_socket.recv(1).decode()
             while b != '!':
                 i_length += b
                 b = my_socket.recv(1).decode()
-
             if sign == 'b':
                 item = my_socket.recv(int(i_length))
             elif sign == 's':

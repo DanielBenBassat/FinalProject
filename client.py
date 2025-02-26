@@ -5,6 +5,7 @@ from protocol import protocol_send
 from protocol import protocol_receive
 import threading
 import pickle
+import os
 
 MAIN_SERVER_ADDR = ("127.0.0.1", 5555)
 
@@ -148,8 +149,9 @@ def main():
                         song_name = input("Enter song's name: ")
                         artist = input("Enter artist's name: ")
                         file_path = input("Enter file path: ")
-                        song_id, media_server_address = get_address_new_song(main_socket, song_name, artist)
-                        post_song(file_path, song_id, media_server_address)
+                        if os.path.isfile(file_path):
+                            song_id, media_server_address = get_address_new_song(main_socket, song_name, artist)
+                            post_song(file_path, song_id, media_server_address)
                     else:
                         print("Try again")
 
