@@ -6,6 +6,10 @@ from protocol import protocol_receive
 import threading
 import pickle
 import os
+import time
+from songs_queue import SongsQueue
+from player import MusicPlayer
+
 
 MAIN_SERVER_ADDR = ("127.0.0.1", 5555)
 
@@ -14,10 +18,8 @@ LOG_LEVEL = logging.DEBUG
 LOG_DIR = 'log'
 LOG_FILE = LOG_DIR + '/client.log'
 
+q = SongsQueue()
 
-def stop_song():
-    pygame.mixer.music.stop()
-    print("Music stopped.")
 
 
 def play_song(song_name):
@@ -34,7 +36,8 @@ def play_song(song_name):
     while pygame.mixer.music.get_busy():
         cmd = input("Type 'stop' to stop the music: ")
         if cmd.lower() == "stop":
-            stop_song()
+            pygame.mixer.music.stop()
+            print("Music stopped.")
             break
 
 
@@ -143,7 +146,8 @@ def main():
                             media_server_address = get_address(main_socket, song_id)
                             file_name = get_song(song_id, media_server_address)
                             if file_name != "error":
-                                play_song(file_name)
+                                q.add_to_queue(file_name)
+                                #play_song(file_name)
 
                     elif cmd == "add":
                         song_name = input("Enter song's name: ")
@@ -165,15 +169,17 @@ def main():
     except socket.error as err:
         print(f"Received socket error: {err}")
 
-def start_client():
-    print("🔌 Starting the client...")
-    client_thread = threading.Thread(target=main(), args=())
-    client_thread.start()  # הפעלת הטרד הראשון (החיבור לשרת הראשון)
 
-    # ניתן להוסיף פעולות נוספות בלקוח בזמן שהטרד הראשון פועל
-    # לדוג' הפסקה לחיבור שני, פעולות UI או עוד טרדים
+def player():
+    p = MusicPlayer()
+    while True:
+        song_path = q.next_song()  # ממתין להודעה מה-thread הראשי
+        if os.path.exists(song_path):
+            p.play_song(song_path)
 
-    client_thread.join()
+
 
 if __name__ == "__main__":
+    player_thread = threading.Thread(target=player, daemon=True)
+    player_thread.start()
     main()

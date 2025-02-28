@@ -7,8 +7,6 @@ import os
 from music_db import MusicDB
 
 
-
-
 IP = "127.0.0.1"
 PORT = 5555
 CLIENTS_SOCKETS = []
@@ -22,26 +20,25 @@ ADDRESS_LIST = [("127.0.0.1", 2222)]
 
 
 def handle_client(client_socket):
-
     try:
         db = MusicDB("my_db.db")
         dict = db.all_songs()
         dict = pickle.dumps(dict)
         protocol.protocol_send(client_socket, "str", [dict])
 
-        while True:  # 🔄 לולאה שממשיכה לקרוא הודעות מהלקוח
+        while True:
             try:
-                received = protocol.protocol_receive(client_socket)
-                if received is None:
+                msg = protocol.protocol_receive(client_socket)
+                if msg is None:
                     logging.debug("[ERROR] Received None, closing connection.")
-                    break  # יציאה מהלולאה אם הלקוח התנתק
+                    break
 
-                cmd, data = received
+                cmd, data = msg
                 logging.debug(f"Received command: {cmd}, Data: {data}")
 
                 if cmd == "gad":  # [id]
-                    id = data[0]
-                    result = db.get_address(id)
+                    song_id = data[0]
+                    result = db.get_address(song_id)
                     if result:
                         ip, port = result
                         protocol.protocol_send(client_socket, "gad", [ip, port])
@@ -70,10 +67,8 @@ def main():
     try:
         server.bind((IP, PORT))
         server.listen()
-
         while True:
             try:
-
                 client_socket, client_address = server.accept()
                 CLIENTS_SOCKETS.append(client_socket)
                 thread = threading.Thread(target=handle_client, args=([client_socket]))

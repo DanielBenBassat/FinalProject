@@ -57,7 +57,6 @@ def handle_client(client_socket, client_address):
         client_socket.close()
 
 
-
 def main():
     my_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
     try:
@@ -74,7 +73,6 @@ def main():
 
     finally:
         my_socket.close()
-
 
 
 

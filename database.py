@@ -54,8 +54,6 @@ class DataBase:
     def insert(self, table_name, data):
         fields = ", ".join(data.keys())
         placeholders = ", ".join(["?"] * len(data))  # "?, ?"
-        for key, value in data.items():
-            print(f"Key: {key}, Type: {type(value)}, Value: {value}")
         try:
             insert_query = f"INSERT INTO {table_name} ({fields}) VALUES ({placeholders})"
             self.cursor.execute(insert_query, list(data.values()))  # Pass values safely
