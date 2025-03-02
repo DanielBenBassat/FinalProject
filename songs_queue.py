@@ -5,13 +5,13 @@ class SongsQueue:
     def __init__(self):
         self.my_queue = queue.Queue() # queue of file's paths
 
-    def add_to_queue(self, file_path):
+    def add_to_queue(self, file_path): # main thread
         """
         מוסיף שיר לתור
         """
         self.my_queue.put(file_path)
 
-    def next_song(self):
+    def get_song(self):
         """
         מנגן את השיר הבא מהתור
         """
@@ -22,7 +22,10 @@ class SongsQueue:
             except queue.Empty:
                 continue
 
+    def queue_to_list(self):
 
+        l = list(self.my_queue.queue)
+        return " -> ".join(l)
 
 
 

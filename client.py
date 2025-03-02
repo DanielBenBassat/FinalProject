@@ -11,12 +11,45 @@ from songs_queue import SongsQueue
 from player import MusicPlayer
 
 
+
+
+# === Logging Configuration ===
+LOG_DIR = 'log'
+
+LOG_FILE_CLIENT = os.path.join(LOG_DIR, 'client.log')
+LOG_FILE_PLAYER = os.path.join(LOG_DIR, 'player.log')
+LOG_FORMAT = '%(levelname)s | %(asctime)s | %(name)s | %(message)s'
+
+
+def setup_logger(name, log_file):
+    """Set up a logger that logs to a specific file."""
+    logger = logging.getLogger(name)
+    logger.setLevel(logging.DEBUG)
+
+    file_handler = logging.FileHandler(log_file)
+    file_handler.setLevel(logging.DEBUG)
+
+    formatter = logging.Formatter(LOG_FORMAT)
+    file_handler.setFormatter(formatter)
+
+    logger.addHandler(file_handler)
+
+    return logger
+
+
+
+
+
+
+
 MAIN_SERVER_ADDR = ("127.0.0.1", 5555)
 
 LOG_FORMAT = '%(levelname)s | %(asctime)s | %(message)s'
 LOG_LEVEL = logging.DEBUG
 LOG_DIR = 'log'
-LOG_FILE = LOG_DIR + '/client.log'
+LOG_FILE_CLIENT = LOG_DIR + '/client.log'
+LOG_FILE_PLAYER = LOG_DIR + '/player.log'
+
 
 q = SongsQueue()
 
@@ -69,7 +102,7 @@ def get_song(song_id, server_address):
     try:
         media_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         media_socket.connect(server_address)
-        print("Connection with media server successful!")
+        client_log.debug("Connection with media server successful!")
         protocol_send(media_socket, "get", [song_id])
         cmd, data = protocol_receive(media_socket) # "get" , [file_name, file_bytes]
         media_socket.close()
@@ -77,10 +110,10 @@ def get_song(song_id, server_address):
         if file_name != "not found":
             with open(file_name, 'wb') as file:
                 file.write(data[1])
-            print(f"File saved as {file_name}")
+            client_log.debug(f"File saved as {file_name}")
 
     except socket.error as e:
-        print(f"Connection failed: {e}")
+        client_log.debug(f"Connection failed: {e}")
 
     finally:
         return file_name
@@ -115,7 +148,7 @@ def post_song(file_path, id, server_address):
     try:
         media_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         media_socket.connect(server_address)
-        print("Connection successful!")
+        client_log.debug("Connection with media server successful!")
         with open(file_path, "rb") as file:
             song_bytes = file.read()
         data = [id, song_bytes]
@@ -123,7 +156,7 @@ def post_song(file_path, id, server_address):
         media_socket.close()
 
     except socket.error as e:
-        print(f"Connection failed: {e}")
+        client_log(f"Connection failed: {e}")
 
 
 def main():
@@ -147,7 +180,6 @@ def main():
                             file_name = get_song(song_id, media_server_address)
                             if file_name != "error":
                                 q.add_to_queue(file_name)
-                                #play_song(file_name)
 
                     elif cmd == "add":
                         song_name = input("Enter song's name: ")
@@ -160,26 +192,33 @@ def main():
                         print("Try again")
 
             except socket.error as err:
-                print(f"Received socket error: {err}")
+                client_log.debug(f"Received socket error: {err}")
 
             finally:
-                print("Client left the server")
+                client_log.debug("Client finish")
                 main_socket.close()
 
     except socket.error as err:
-        print(f"Received socket error: {err}")
+        client_log.debug(f"Received socket error: {err}")
 
 
 def player():
     p = MusicPlayer()
     while True:
-        song_path = q.next_song()  # ממתין להודעה מה-thread הראשי
+        song_path = q.get_song()  # ממתין להודעה מה-thread הראשי
         if os.path.exists(song_path):
+            player_log.debug("play song: " + song_path)
             p.play_song(song_path)
 
 
 
 if __name__ == "__main__":
+    if not os.path.isdir(LOG_DIR):
+        os.makedirs(LOG_DIR)
+    # Initialize loggers (runs at import)
+    client_log = setup_logger("ClientLogger", LOG_FILE_CLIENT)
+    player_log = setup_logger("PlayerLogger", LOG_FILE_PLAYER)
+
     player_thread = threading.Thread(target=player, daemon=True)
     player_thread.start()
     main()

@@ -13,25 +13,32 @@ class MusicPlayer:
         self.queue = queue.Queue()  # לנהל את ההודעות בין הטרדים
         self.play_thread = None  # ניהול ה-Thread של הניגון
 
+
     def play_song(self, file_path):
         """
         מקבל קובץ MP3 ומנגן אותו
         """
-        def play():
-            # טוען את הקובץ ומנגן אותו
-            self.song = pygame.mixer.Sound(file_path)
-            self.song.play()
-            self.is_playing = True
-            while self.is_playing:
-                if self.is_paused:
-                    pygame.mixer.music.pause()  # השהיית המוזיקה
-                    while self.is_paused:
-                        sleep(0.1)  # מחכה לחזרה להנגינה
-                    pygame.mixer.music.unpause()  # המשך הניגון
-                sleep(0.1)
+        self.song = pygame.mixer.Sound(file_path)
+        self.song.play()
+        self.is_playing = True
+        self.is_paused = False  # Ensure is_paused starts as False
 
-        self.play_thread = threading.Thread(target=play)
-        self.play_thread.start()
+        while self.is_playing:
+         #   if self.is_paused:
+          #     while self.is_paused:
+           #         sleep(0.1)
+            #    pygame.mixer.music.unpause()  # המשך הניגון
+
+            if not pygame.mixer.get_busy():  # Check if the song is over
+                self.is_playing = False
+                #self.is_paused = False  # Reset is_paused when song ends
+                break
+
+            sleep(0.1)
+
+
+            #self.play_thread = threading.Thread(target=play)
+            #self.play_thread.start()
 
     def stop_song(self):
         """
