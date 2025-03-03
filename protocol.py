@@ -20,8 +20,8 @@ def protocol_send(my_socket, cmd, data):
 
 def protocol_receive(my_socket):
     b = my_socket.recv(1).decode()
-    cmd = ''
     if b != '':
+        cmd = ''
         while b != '!':
             cmd += b
             b = my_socket.recv(1).decode()

@@ -68,7 +68,7 @@ class DataBase:
         values = []
         if where_condition != {}:
             conditions = " AND ".join([f"{key}=?" for key in where_condition.keys()])
-            select_query += f" WHERE {conditions} lIMIT 1"
+            select_query += f" WHERE {conditions}" # lIMIT 1"
             values = list(where_condition.values())  # Values for placeholders
 
         try:

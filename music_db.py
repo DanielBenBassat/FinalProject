@@ -1,6 +1,9 @@
 import sqlite3
 from database import DataBase
 import random
+import socket
+from protocol import protocol_receive
+from protocol import protocol_send
 
 class MusicDB(DataBase):
     def __init__(self, name):
@@ -17,16 +20,16 @@ class MusicDB(DataBase):
         self.create_table("songs", songs_columns)
 
         users_columns = {"id" : "INTEGER PRIMARY KEY AUTOINCREMENT",
-                        "username" : "TEXT NOT NULL",
-                        "password": "TEXT NOT NULL",
-                        "key" : "TEXT"}
+                         "username" : "TEXT NOT NULL",
+                         "password": "TEXT NOT NULL",
+                         "key": "TEXT"}
         self.create_table("users", users_columns)
 
         playlists_columns = {"id" : "INTEGER PRIMARY KEY AUTOINCREMENT",
-                            "playlists_name": "TEXT NOT NULL",
-                            "user": "TEXT NOT NULL",
-                            "songs": "TEXT"}
-        foreign_key =[("user","users","id")]
+                             "playlists_name": "TEXT NOT NULL",
+                             "user": "TEXT NOT NULL",
+                             "songs": "TEXT"}
+        foreign_key = [("user","users","id")]
         self.create_table("playlists", playlists_columns, foreign_key)
 
 #signup
@@ -101,6 +104,42 @@ class MusicDB(DataBase):
         else:
             return None
 
+    def verify_songs_pending(self):
+        songs_pending = self.select("songs", '*', {"setting1": "pending"})
+        for song in songs_pending:
+            song_id = song[0]
+            ip1 = song[3]
+            port1 = song[4]
+            check = self.get_song(song_id, (ip1, int(port1)))
+            if check != "error":
+                self.insert("songs", {"setting1": "verified"})
+
+    def get_song(self, song_id, server_address):
+        """
+
+        :param song_id: int
+        :param server_address: tuple of ip(str) and port(int)
+        :return:
+        """
+        file_name = "error"
+        try:
+            media_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+            media_socket.connect(server_address)
+            print("Connection with media server successful!")
+            protocol_send(media_socket, "get", [song_id])
+            cmd, data = protocol_receive(media_socket) # "get" , [file_name, file_bytes]
+            media_socket.close()
+            file_name = data[0]
+            if file_name != "not found":
+                with open(file_name, 'wb') as file:
+                    file.write(data[1])
+                print(f"File saved as {file_name}")
+
+        except socket.error as e:
+            print(f"Connection failed: {e}")
+
+        finally:
+            return file_name
 
 
     #def add_playlist

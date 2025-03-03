@@ -54,26 +54,6 @@ LOG_FILE_PLAYER = LOG_DIR + '/player.log'
 q = SongsQueue()
 
 
-
-def play_song(song_name):
-    """
-
-    :param song_name: name.mp3
-    :return:
-    """
-    pygame.mixer.init()
-    pygame.mixer.music.load(song_name)
-    pygame.mixer.music.play()
-    print(f"Playing {song_name}... Type 'stop' to stop the music.")
-
-    while pygame.mixer.music.get_busy():
-        cmd = input("Type 'stop' to stop the music: ")
-        if cmd.lower() == "stop":
-            pygame.mixer.music.stop()
-            print("Music stopped.")
-            break
-
-
 def get_address(client_socket, song_id):
     """
     sends the main server a song id and receive an address of the media server that has the song
@@ -119,6 +99,15 @@ def get_song(song_id, server_address):
         return file_name
 
 
+def listen_song(main_socket, song_id_dict):
+    song = input("Enter song's name: ")
+    if song in song_id_dict:
+        song_id = song_id_dict[song][1]
+        media_server_address = get_address(main_socket, song_id)
+        file_name = get_song(song_id, media_server_address)
+        if file_name != "error":
+            q.add_to_queue(file_name)
+
 def get_address_new_song(client_socket, song_name, artist):
     """
     gets an id and a server address for adding new song
@@ -144,7 +133,7 @@ def post_song(file_path, id, server_address):
     :param server_address: tuple of ip(str) and port(int)
     :return:
     """
-
+    val = "error"
     try:
         media_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         media_socket.connect(server_address)
@@ -153,11 +142,14 @@ def post_song(file_path, id, server_address):
             song_bytes = file.read()
         data = [id, song_bytes]
         protocol_send(media_socket, "pst", data)
+        cmd, data = protocol_receive(media_socket)
+        val = data[0]
         media_socket.close()
 
     except socket.error as e:
-        client_log(f"Connection failed: {e}")
-
+        client_log.debug(f"Connection failed: {e}")
+    finally:
+        return val
 
 def main():
     try:
@@ -173,13 +165,9 @@ def main():
                     if cmd == "exit":
                         break
                     elif cmd == "listen":
-                        song = input("Enter song's name: ")
-                        if song in song_id_dict:
-                            song_id = song_id_dict[song][1]
-                            media_server_address = get_address(main_socket, song_id)
-                            file_name = get_song(song_id, media_server_address)
-                            if file_name != "error":
-                                q.add_to_queue(file_name)
+                        media_type = input("song or playlist: ")
+                        if media_type == "song":
+                            listen_song(main_socket, song_id_dict)
 
                     elif cmd == "add":
                         song_name = input("Enter song's name: ")
@@ -187,7 +175,13 @@ def main():
                         file_path = input("Enter file path: ")
                         if os.path.isfile(file_path):
                             song_id, media_server_address = get_address_new_song(main_socket, song_name, artist)
-                            post_song(file_path, song_id, media_server_address)
+                            val = post_song(file_path, song_id, media_server_address)
+                            print
+                            if val == "good":
+                                client_log.debug("post song succeeded")
+                            elif val == "error":
+                                client_log.debug("post song failed")
+
                     else:
                         print("Try again")
 
