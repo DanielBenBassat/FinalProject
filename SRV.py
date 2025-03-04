@@ -5,6 +5,7 @@ import protocol
 import logging
 import os
 from music_db import MusicDB
+import time
 
 
 IP = "127.0.0.1"
@@ -17,6 +18,12 @@ lock = threading.Lock()
 task_start = 0
 found = False
 ADDRESS_LIST = [("127.0.0.1", 2222)]
+
+def background_task():
+    db = MusicDB("my_db.db")
+    while True:
+        db.verify_songs()
+        time.sleep(15)
 
 
 def handle_client(client_socket):
@@ -86,4 +93,6 @@ def main():
 
 
 if __name__ == "__main__":
+    thread = threading.Thread(target=background_task, daemon=True)
+    thread.start()
     main()

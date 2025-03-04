@@ -1,9 +1,9 @@
-import sqlite3
 from database import DataBase
 import random
 import socket
 from protocol import protocol_receive
 from protocol import protocol_send
+import os
 
 class MusicDB(DataBase):
     def __init__(self, name):
@@ -47,7 +47,7 @@ class MusicDB(DataBase):
         """
         details = self.select("users", '*', {"id": user_id})
         if username == details[1]:
-            if password == details[2]   :
+            if password == details[2]:
                 return True, "all"
             else:
                 return False, "password"
@@ -56,7 +56,7 @@ class MusicDB(DataBase):
 
     def all_songs(self):
         dict = {}
-        songs = self.select("songs", 'id,name,artist')
+        songs = self.select("songs", 'id,name,artist', {"setting1": "verified"})
         for i in songs:
             name = i[1]
             artist = i[2]
@@ -95,7 +95,7 @@ class MusicDB(DataBase):
             ip2 = song[6]
             port2 = song[7]
             set2 = song[8]
-            if set1 == "verified" or set1 == "pending":
+            if set1 == "verified":
                 return ip1, port1
             elif set2 == "verified":
                 return ip2, port2
@@ -104,15 +104,16 @@ class MusicDB(DataBase):
         else:
             return None
 
-    def verify_songs_pending(self):
-        songs_pending = self.select("songs", '*', {"setting1": "pending"})
+    def verify_songs(self):
+        songs_pending = self.select("songs", '*', {"setting1": "pending", "setting2": "pending"}, "OR")
         for song in songs_pending:
             song_id = song[0]
             ip1 = song[3]
             port1 = song[4]
-            check = self.get_song(song_id, (ip1, int(port1)))
-            if check != "error":
-                self.insert("songs", {"setting1": "verified"})
+            file_name = self.get_song(song_id, (ip1, int(port1)))
+            if file_name != "error":
+                self.update("songs", {"setting1": "verified"}, {"id": song_id})
+
 
     def get_song(self, song_id, server_address):
         """

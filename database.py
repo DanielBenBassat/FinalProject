@@ -61,13 +61,13 @@ class DataBase:
         except sqlite3.IntegrityError as error:
             print(error)
 
-    def select(self, table_name, fields='*', where_condition={}):
+    def select(self, table_name, fields='*', where_condition={}, cond="And"):
 
         select_query = f"SELECT {fields} FROM {table_name}"
 
         values = []
         if where_condition != {}:
-            conditions = " AND ".join([f"{key}=?" for key in where_condition.keys()])
+            conditions = f" {cond} ".join([f"{key}=?" for key in where_condition.keys()])
             select_query += f" WHERE {conditions}" # lIMIT 1"
             values = list(where_condition.values())  # Values for placeholders
 

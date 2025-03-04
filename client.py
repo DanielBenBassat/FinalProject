@@ -151,10 +151,20 @@ def post_song(file_path, id, server_address):
     finally:
         return val
 
+
+def start_client(main_socket):
+    cmd = input("enter 1 to sign up or 2 to log in")
+    if cmd == "1":
+        username = input("choose your username: ")
+        password = input("enter password")
+        password2 = input("verify password")
+        if password == password2 and password is not None:
+            protocol_send(main_socket, cmd, [username, password])
 def main():
     try:
         main_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         main_socket.connect(MAIN_SERVER_ADDR)
+        start_client()
         cmd, data = protocol_receive(main_socket)
         if cmd == "str":
             song_id_dict = pickle.loads(data[0])
@@ -176,7 +186,6 @@ def main():
                         if os.path.isfile(file_path):
                             song_id, media_server_address = get_address_new_song(main_socket, song_name, artist)
                             val = post_song(file_path, song_id, media_server_address)
-                            print
                             if val == "good":
                                 client_log.debug("post song succeeded")
                             elif val == "error":
@@ -203,7 +212,6 @@ def player():
         if os.path.exists(song_path):
             player_log.debug("play song: " + song_path)
             p.play_song(song_path)
-
 
 
 if __name__ == "__main__":
