@@ -72,13 +72,13 @@ class DataBase:
             values = list(where_condition.values())  # Values for placeholders
 
         try:
-            print(select_query)
-            print(values)
+            #print(select_query)
+            #print(values)
             self.cursor.execute(select_query, values)
             results = self.cursor.fetchall()
             return results
         except sqlite3.OperationalError as err:
-            print(err)
+            #print(err)
             return None
 
     def update(self, table_name, updates, where):

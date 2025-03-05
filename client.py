@@ -166,11 +166,12 @@ def start_client(main_socket):
             cmd, data = protocol_receive(main_socket)
             if data[0] == "good":
                 return True
-    if cmd == "2":
+    elif cmd == "2":
         username = input("choose your username: ")
         password = input("enter password")
         protocol_send(main_socket, "log", [username, password])
         cmd, data = protocol_receive(main_socket)
+        print(data)
         if data[0] == "True":
             return True
         elif data[1] == "username" or data[1] == "password":
@@ -180,7 +181,11 @@ def main():
     try:
         main_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         main_socket.connect(MAIN_SERVER_ADDR)
-        start_client(main_socket)
+        temp = False
+        while not temp:
+            temp = start_client(main_socket)
+            print(temp)
+
         cmd, data = protocol_receive(main_socket)
         if cmd == "str":
             song_id_dict = pickle.loads(data[0])

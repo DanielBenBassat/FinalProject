@@ -46,7 +46,7 @@ class MusicDB(DataBase):
         """
         details = self.select("users", '*', {"username": username})
         print(details)
-        if details is not None:
+        if details:
             if password == details[0][2]:
                 return True, "all"
             else:
