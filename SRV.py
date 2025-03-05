@@ -29,6 +29,27 @@ def background_task():
 def handle_client(client_socket):
     try:
         db = MusicDB("my_db.db")
+        #enter to system
+        cmd, data = protocol.protocol_receive(client_socket)
+        if cmd == "sig":
+            username = data[0]
+            password = data[1]
+            db.add_user(username, password)
+            protocol.protocol_send(client_socket, "sig", ["good"])
+        elif cmd == "log":
+            username = data[0]
+            password = data[1]
+            val, problem = db.verified_user(username, password)
+            if val:
+                protocol.protocol_send(client_socket, "log", ["True"])
+            else:
+                if problem == "username":
+                    protocol.protocol_send(client_socket, "log", ["False", "username"])
+                elif problem == "password":
+                    protocol.protocol_send(client_socket, "log", ["False", "password"])
+
+        #start working
+
         dict = db.all_songs()
         dict = pickle.dumps(dict)
         protocol.protocol_send(client_socket, "str", [dict])

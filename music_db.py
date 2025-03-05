@@ -34,20 +34,20 @@ class MusicDB(DataBase):
 
 #signup
     def add_user(self, username, password):
-        data = {"username" : username, "password": password}
+        data = {"username": username, "password": password}
         self.insert("users", data)
 
     #login
-    def verified_user(self, user_id, username, password):
+    def verified_user(self, username, password):
         """
-        :param user_id:
         :param username:
         :param password:
         :return: true if verified and false if not
         """
-        details = self.select("users", '*', {"id": user_id})
-        if username == details[1]:
-            if password == details[2]:
+        details = self.select("users", '*', {"username": username})
+        print(details)
+        if details is not None:
+            if password == details[0][2]:
                 return True, "all"
             else:
                 return False, "password"

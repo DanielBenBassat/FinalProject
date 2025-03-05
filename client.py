@@ -153,18 +153,34 @@ def post_song(file_path, id, server_address):
 
 
 def start_client(main_socket):
-    cmd = input("enter 1 to sign up or 2 to log in")
+    cmd = 0
+    while cmd != "1" and cmd != "2":
+        cmd = input("enter 1 to sign up or 2 to log in: ")
+
     if cmd == "1":
         username = input("choose your username: ")
         password = input("enter password")
         password2 = input("verify password")
         if password == password2 and password is not None:
-            protocol_send(main_socket, cmd, [username, password])
+            protocol_send(main_socket, "sig", [username, password])
+            cmd, data = protocol_receive(main_socket)
+            if data[0] == "good":
+                return True
+    if cmd == "2":
+        username = input("choose your username: ")
+        password = input("enter password")
+        protocol_send(main_socket, "log", [username, password])
+        cmd, data = protocol_receive(main_socket)
+        if data[0] == "True":
+            return True
+        elif data[1] == "username" or data[1] == "password":
+            return False
+
 def main():
     try:
         main_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         main_socket.connect(MAIN_SERVER_ADDR)
-        start_client()
+        start_client(main_socket)
         cmd, data = protocol_receive(main_socket)
         if cmd == "str":
             song_id_dict = pickle.loads(data[0])
