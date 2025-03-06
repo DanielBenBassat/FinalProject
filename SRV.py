@@ -36,60 +36,60 @@ def handle_client(client_socket):
             if msg is not None:
                 cmd = msg[0]
                 data = msg[1]
-                if cmd == "sig":
-                    username = data[0]
-                    password = data[1]
-                    db.add_user(username, password)
-                    protocol.protocol_send(client_socket, "sig", ["good"])
+            if cmd == "sig":
+                username = data[0]
+                password = data[1]
+                db.add_user(username, password)
+                protocol.protocol_send(client_socket, "sig", ["good"])
+                temp = True
+            elif cmd == "log":
+                username = data[0]
+                password = data[1]
+                val, problem = db.verified_user(username, password)
+                if not val:
+                    if problem == "username":
+                        protocol.protocol_send(client_socket, "log", ["False", "username"])
+                    elif problem == "password":
+                        protocol.protocol_send(client_socket, "log", ["False", "password"])
+                elif val:
                     temp = True
-                elif cmd == "log":
-                    username = data[0]
-                    password = data[1]
-                    val, problem = db.verified_user(username, password)
-                    if not val:
-                        if problem == "username":
-                            protocol.protocol_send(client_socket, "log", ["False", "username"])
-                        elif problem == "password":
-                            protocol.protocol_send(client_socket, "log", ["False", "password"])
-                    elif val:
-                        temp = True
-                        protocol.protocol_send(client_socket, "log", ["True", "ok"])
+                    protocol.protocol_send(client_socket, "log", ["True", "ok"])
 
 
-            #start working
+        #start working
 
-                    dict = db.all_songs()
-                    dict = pickle.dumps(dict)
-                    protocol.protocol_send(client_socket, "str", [dict])
+        dict = db.all_songs()
+        dict = pickle.dumps(dict)
+        protocol.protocol_send(client_socket, "str", [dict])
 
-                    while True:
-                        try:
-                            msg = protocol.protocol_receive(client_socket)
-                            if msg is None:
-                                logging.debug("[ERROR] Received None, closing connection.")
-                                break
+        while True:
+            try:
+                msg = protocol.protocol_receive(client_socket)
+                if msg is None:
+                    logging.debug("[ERROR] Received None, closing connection.")
+                    break
 
-                            cmd, data = msg
-                            logging.debug(f"Received command: {cmd}, Data: {data}")
+                cmd, data = msg
+                logging.debug(f"Received command: {cmd}, Data: {data}")
 
-                            if cmd == "gad":  # [id]
-                                song_id = data[0]
-                                result = db.get_address(song_id)
-                                if result:
-                                    ip, port = result
-                                    protocol.protocol_send(client_socket, "gad", [ip, port])
-                                else:
-                                    protocol.protocol_send(client_socket, "error", ["ID not found"])
+                if cmd == "gad":  # [id]
+                    song_id = data[0]
+                    result = db.get_address(song_id)
+                    if result:
+                        ip, port = result
+                        protocol.protocol_send(client_socket, "gad", [ip, port])
+                    else:
+                        protocol.protocol_send(client_socket, "error", ["ID not found"])
 
-                            elif cmd == "pad":  # [name, artist]
-                                name, artist = data
-                                id, ip, port = db.add_song(name, artist, ADDRESS_LIST)
-                                id = id[0][0]
-                                protocol.protocol_send(client_socket, "pad", [id, ip, port])
+                elif cmd == "pad":  # [name, artist]
+                    name, artist = data
+                    id, ip, port = db.add_song(name, artist, ADDRESS_LIST)
+                    id = id[0][0]
+                    protocol.protocol_send(client_socket, "pad", [id, ip, port])
 
-                        except Exception as e:
-                            logging.error(f"[ERROR] Exception in client handling: {e}")
-                            break  # יציאה אם יש שגיאה`
+            except Exception as e:
+                logging.error(f"[ERROR] Exception in client handling: {e}")
+                break  # יציאה אם יש שגיאה`
 
     except socket.error as e:
         logging.error(f"[ERROR] Socket error: {e}")

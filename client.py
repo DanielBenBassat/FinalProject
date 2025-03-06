@@ -1,6 +1,5 @@
 import socket
 import logging
-import pygame
 from protocol import protocol_send
 from protocol import protocol_receive
 import threading
@@ -10,12 +9,7 @@ import time
 from songs_queue import SongsQueue
 from player import MusicPlayer
 
-
-
-
-# === Logging Configuration ===
 LOG_DIR = 'log'
-
 LOG_FILE_CLIENT = os.path.join(LOG_DIR, 'client.log')
 LOG_FILE_PLAYER = os.path.join(LOG_DIR, 'player.log')
 LOG_FORMAT = '%(levelname)s | %(asctime)s | %(name)s | %(message)s'
@@ -37,20 +31,7 @@ def setup_logger(name, log_file):
     return logger
 
 
-
-
-
-
-
 MAIN_SERVER_ADDR = ("127.0.0.1", 5555)
-
-LOG_FORMAT = '%(levelname)s | %(asctime)s | %(message)s'
-LOG_LEVEL = logging.DEBUG
-LOG_DIR = 'log'
-LOG_FILE_CLIENT = LOG_DIR + '/client.log'
-LOG_FILE_PLAYER = LOG_DIR + '/player.log'
-
-
 q = SongsQueue()
 
 
@@ -64,7 +45,10 @@ def get_address(client_socket, song_id):
     cmd = "gad"
     data = [song_id]
     protocol_send(client_socket, cmd, data)
+    client_log.debug("send: " + cmd + ", ".join(str(data)))
+
     cmd, data = protocol_receive(client_socket)
+    client_log.debug("received: " + cmd + " " + ", ".join(str(data)))
     ip = data[0]
     port = int(data[1])
     address = (ip, port)
@@ -83,8 +67,15 @@ def get_song(song_id, server_address):
         media_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         media_socket.connect(server_address)
         client_log.debug("Connection with media server successful!")
-        protocol_send(media_socket, "get", [song_id])
-        cmd, data = protocol_receive(media_socket) # "get" , [file_name, file_bytes]
+
+        cmd = "get"
+        data = [song_id]
+        protocol_send(media_socket, cmd, data)
+        client_log.debug("send: " + cmd + ", ".join(str(data)))
+
+        cmd, data = protocol_receive(media_socket)
+        client_log.debug("received: " + cmd + " " + ", ".join(str(data)))     # "get" , [file_name, file_bytes]
+
         media_socket.close()
         file_name = data[0]
         if file_name != "not found":
@@ -107,6 +98,8 @@ def listen_song(main_socket, song_id_dict):
         file_name = get_song(song_id, media_server_address)
         if file_name != "error":
             q.add_to_queue(file_name)
+            client_log.debug(file_name + " was added to queue")
+
 
 def get_address_new_song(client_socket, song_name, artist):
     """
@@ -116,8 +109,14 @@ def get_address_new_song(client_socket, song_name, artist):
     :param artist: str
     :return:
     """
-    protocol_send(client_socket, "pad", [song_name, artist])
+    cmd = "pad"
+    data = [song_name, artist]
+    protocol_send(client_socket, cmd, data)
+    client_log.debug("send: " + cmd + ", ".join(str(data)))
+
     cmd, data = protocol_receive(client_socket) # "pad", [id, ip, port]
+    client_log.debug("received: " + cmd + " " + ", ".join(str(data)))     # "get" , [file_name, file_bytes]
+
     song_id = int(data[0])
     ip = data[1]
     port = int(data[2])
@@ -140,9 +139,15 @@ def post_song(file_path, id, server_address):
         client_log.debug("Connection with media server successful!")
         with open(file_path, "rb") as file:
             song_bytes = file.read()
+
+        cmd= "pst"
         data = [id, song_bytes]
-        protocol_send(media_socket, "pst", data)
+        protocol_send(media_socket, cmd, data)
+        client_log.debug("send: " + cmd + ", ".join(str(data)))
+
         cmd, data = protocol_receive(media_socket)
+        client_log.debug("received: " + cmd + " " + ", ".join(str(data)))
+
         val = data[0]
         media_socket.close()
 
@@ -162,20 +167,32 @@ def start_client(main_socket):
         password = input("enter password")
         password2 = input("verify password")
         if password == password2 and password is not None:
-            protocol_send(main_socket, "sig", [username, password])
+            cmd = "sig"
+            data = [username, password]
+            protocol_send(main_socket, cmd, data)
+            client_log.debug("send: " + cmd + " " + ", ".join(str(data)))
+
             cmd, data = protocol_receive(main_socket)
+            client_log.debug("received: " + cmd + " " + ", ".join(str(data)))
+
             if data[0] == "good":
                 return True
     elif cmd == "2":
         username = input("choose your username: ")
         password = input("enter password")
-        protocol_send(main_socket, "log", [username, password])
+        cmd = "log"
+        data = [username, password]
+        protocol_send(main_socket, cmd, data)
+        client_log.debug("send: " + cmd + " " + ", ".join(str(data)))
+
         cmd, data = protocol_receive(main_socket)
-        print(data)
+        client_log.debug("received: " + cmd + " " + ", ".join(str(data)))
+
         if data[0] == "True":
             return True
         elif data[1] == "username" or data[1] == "password":
             return False
+
 
 def main():
     try:
@@ -184,7 +201,6 @@ def main():
         temp = False
         while not temp:
             temp = start_client(main_socket)
-            print(temp)
 
         cmd, data = protocol_receive(main_socket)
         if cmd == "str":
@@ -229,7 +245,7 @@ def main():
 def player():
     p = MusicPlayer()
     while True:
-        song_path = q.get_song()  # ממתין להודעה מה-thread הראשי
+        song_path = q.get_song()
         if os.path.exists(song_path):
             player_log.debug("play song: " + song_path)
             p.play_song(song_path)
