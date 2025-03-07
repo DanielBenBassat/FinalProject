@@ -1,21 +1,25 @@
 
 
 def protocol_send(my_socket, cmd, data):
-    msg = cmd + "!" + str(len(data))
-    #print("send: " + msg)
-    msg = msg.encode()
-    for i in data:
-        if isinstance(i, bytes):
-            sign = 'b'
-            encoded_data = i
-        else:
-            sign = 's'
-            #print(i)
-            encoded_data = str(i).encode()
-        temp = sign + str(len(str(i))) + "!"
-        msg += temp.encode() + encoded_data
+    try:
+        msg = cmd + "!" + str(len(data))
+        #print("send: " + msg)
+        msg = msg.encode()
+        for i in data:
+            if isinstance(i, bytes):
+                sign = 'b'
+                encoded_data = i
+            else:
+                sign = 's'
+                #print(i)
+                encoded_data = str(i).encode()
+            temp = sign + str(len(str(i))) + "!"
+            msg += temp.encode() + encoded_data
 
-    my_socket.send(msg)
+        my_socket.send(msg)
+        print("sent")
+    except Exception as e:  # תפיסת כל סוגי החריגות
+        print(e)
 
 
 def protocol_receive(my_socket):

@@ -9,6 +9,7 @@ IP = '127.0.0.1'
 PORT = 2222
 QUEUE_LEN = 1
 
+#token = jwt.encode(payload, SECRET_KEY, algorithm="HS256")
 
 def send_song(client_socket, song_name):
     song_name += ".mp3"

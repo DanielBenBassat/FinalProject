@@ -35,6 +35,17 @@ MAIN_SERVER_ADDR = ("127.0.0.1", 5555)
 q = SongsQueue()
 
 
+def logging_protocol(func ,cmd, data):
+    try:
+        msg = func + " : " + cmd
+        for i in data:
+            if type(i) is not bytes:
+                msg += ", " + str(i)
+        client_log.debug(msg)
+    except Exception as e:  # תפיסת כל סוגי החריגות
+        client_log.debug(e)
+
+
 def get_address(client_socket, song_id):
     """
     sends the main server a song id and receive an address of the media server that has the song
@@ -45,10 +56,10 @@ def get_address(client_socket, song_id):
     cmd = "gad"
     data = [song_id]
     protocol_send(client_socket, cmd, data)
-    client_log.debug("send: " + cmd + ", ".join(str(data)))
+    logging_protocol("send", cmd, data)
 
     cmd, data = protocol_receive(client_socket)
-    client_log.debug("received: " + cmd + " " + ", ".join(str(data)))
+    logging_protocol("received", cmd, data)
     ip = data[0]
     port = int(data[1])
     address = (ip, port)
@@ -71,10 +82,10 @@ def get_song(song_id, server_address):
         cmd = "get"
         data = [song_id]
         protocol_send(media_socket, cmd, data)
-        client_log.debug("send: " + cmd + ", ".join(str(data)))
+        logging_protocol("send", cmd, data)
 
         cmd, data = protocol_receive(media_socket)
-        client_log.debug("received: " + cmd + " " + ", ".join(str(data)))     # "get" , [file_name, file_bytes]
+        logging_protocol("received", cmd, data)
 
         media_socket.close()
         file_name = data[0]
@@ -112,10 +123,10 @@ def get_address_new_song(client_socket, song_name, artist):
     cmd = "pad"
     data = [song_name, artist]
     protocol_send(client_socket, cmd, data)
-    client_log.debug("send: " + cmd + ", ".join(str(data)))
+    logging_protocol("send", cmd, data)
 
     cmd, data = protocol_receive(client_socket) # "pad", [id, ip, port]
-    client_log.debug("received: " + cmd + " " + ", ".join(str(data)))     # "get" , [file_name, file_bytes]
+    logging_protocol("received", cmd, data)
 
     song_id = int(data[0])
     ip = data[1]
@@ -143,10 +154,10 @@ def post_song(file_path, id, server_address):
         cmd= "pst"
         data = [id, song_bytes]
         protocol_send(media_socket, cmd, data)
-        client_log.debug("send: " + cmd + ", ".join(str(data)))
+        logging_protocol("send", cmd, data)
 
         cmd, data = protocol_receive(media_socket)
-        client_log.debug("received: " + cmd + " " + ", ".join(str(data)))
+        logging_protocol("received", cmd, data)
 
         val = data[0]
         media_socket.close()
@@ -170,10 +181,10 @@ def start_client(main_socket):
             cmd = "sig"
             data = [username, password]
             protocol_send(main_socket, cmd, data)
-            client_log.debug("send: " + cmd + " " + ", ".join(str(data)))
+            logging_protocol("send", cmd, data)
 
             cmd, data = protocol_receive(main_socket)
-            client_log.debug("received: " + cmd + " " + ", ".join(str(data)))
+            logging_protocol("received", cmd, data)
 
             if data[0] == "good":
                 return True
@@ -183,10 +194,10 @@ def start_client(main_socket):
         cmd = "log"
         data = [username, password]
         protocol_send(main_socket, cmd, data)
-        client_log.debug("send: " + cmd + " " + ", ".join(str(data)))
+        logging_protocol("send", cmd, data)
 
         cmd, data = protocol_receive(main_socket)
-        client_log.debug("received: " + cmd + " " + ", ".join(str(data)))
+        logging_protocol("received", cmd, data)
 
         if data[0] == "True":
             return True
@@ -212,9 +223,7 @@ def main():
                     if cmd == "exit":
                         break
                     elif cmd == "listen":
-                        media_type = input("song or playlist: ")
-                        if media_type == "song":
-                            listen_song(main_socket, song_id_dict)
+                        listen_song(main_socket, song_id_dict)
 
                     elif cmd == "add":
                         song_name = input("Enter song's name: ")
