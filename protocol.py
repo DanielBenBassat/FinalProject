@@ -17,7 +17,6 @@ def protocol_send(my_socket, cmd, data):
             msg += temp.encode() + encoded_data
 
         my_socket.send(msg)
-        print("sent")
     except Exception as e:  # תפיסת כל סוגי החריגות
         print(e)
 

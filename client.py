@@ -6,6 +6,7 @@ import threading
 import pickle
 import os
 import time
+
 from songs_queue import SongsQueue
 from player import MusicPlayer
 
@@ -13,6 +14,7 @@ LOG_DIR = 'log'
 LOG_FILE_CLIENT = os.path.join(LOG_DIR, 'client.log')
 LOG_FILE_PLAYER = os.path.join(LOG_DIR, 'player.log')
 LOG_FORMAT = '%(levelname)s | %(asctime)s | %(name)s | %(message)s'
+
 
 
 def setup_logger(name, log_file):
@@ -151,7 +153,7 @@ def post_song(file_path, id, server_address):
         with open(file_path, "rb") as file:
             song_bytes = file.read()
 
-        cmd= "pst"
+        cmd = "pst"
         data = [id, song_bytes]
         protocol_send(media_socket, cmd, data)
         logging_protocol("send", cmd, data)
@@ -186,8 +188,6 @@ def start_client(main_socket):
             cmd, data = protocol_receive(main_socket)
             logging_protocol("received", cmd, data)
 
-            if data[0] == "good":
-                return True
     elif cmd == "2":
         username = input("choose your username: ")
         password = input("enter password")
@@ -198,54 +198,54 @@ def start_client(main_socket):
 
         cmd, data = protocol_receive(main_socket)
         logging_protocol("received", cmd, data)
-
-        if data[0] == "True":
-            return True
-        elif data[1] == "username" or data[1] == "password":
-            return False
+    if data[0] == "good":
+        data[0] = True
+    else:
+        data[0] = False
+    return data
 
 
 def main():
     try:
         main_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         main_socket.connect(MAIN_SERVER_ADDR)
-        temp = False
-        while not temp:
+        temp = [False]
+        while not temp[0]:
             temp = start_client(main_socket)
 
-        cmd, data = protocol_receive(main_socket)
-        if cmd == "str":
-            song_id_dict = pickle.loads(data[0])
-            print(song_id_dict)
-            try:
-                while True:
-                    cmd = input("Enter command: listen, add, or exit: ")
-                    if cmd == "exit":
-                        break
-                    elif cmd == "listen":
-                        listen_song(main_socket, song_id_dict)
+        token = temp[1]
+        song_id_dict = pickle.loads(temp[2])
+        print(song_id_dict)
 
-                    elif cmd == "add":
-                        song_name = input("Enter song's name: ")
-                        artist = input("Enter artist's name: ")
-                        file_path = input("Enter file path: ")
-                        if os.path.isfile(file_path):
-                            song_id, media_server_address = get_address_new_song(main_socket, song_name, artist)
-                            val = post_song(file_path, song_id, media_server_address)
-                            if val == "good":
-                                client_log.debug("post song succeeded")
-                            elif val == "error":
-                                client_log.debug("post song failed")
+        try:
+            while True:
+                cmd = input("Enter command: listen, add, or exit: ")
+                if cmd == "exit":
+                    break
+                elif cmd == "listen":
+                    listen_song(main_socket, song_id_dict)
 
-                    else:
-                        print("Try again")
+                elif cmd == "add":
+                    song_name = input("Enter song's name: ")
+                    artist = input("Enter artist's name: ")
+                    file_path = input("Enter file path: ")
+                    if os.path.isfile(file_path):
+                        song_id, media_server_address = get_address_new_song(main_socket, song_name, artist)
+                        val = post_song(file_path, song_id, media_server_address)
+                        if val == "good":
+                            client_log.debug("post song succeeded")
+                        elif val == "error":
+                            client_log.debug("post song failed")
 
-            except socket.error as err:
-                client_log.debug(f"Received socket error: {err}")
+                else:
+                    print("Try again")
 
-            finally:
-                client_log.debug("Client finish")
-                main_socket.close()
+        except socket.error as err:
+            client_log.debug(f"Received socket error: {err}")
+
+        finally:
+            client_log.debug("Client finish")
+            main_socket.close()
 
     except socket.error as err:
         client_log.debug(f"Received socket error: {err}")

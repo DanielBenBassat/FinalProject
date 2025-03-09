@@ -3,13 +3,25 @@ import os
 from protocol import protocol_receive
 from protocol import protocol_send
 import threading
-
+import jwt
+import datetime
+SECRET_KEY= "my_secret_key"
 FOLDER = r"C:\musicCyber"
 IP = '127.0.0.1'
 PORT = 2222
 QUEUE_LEN = 1
 
-#token = jwt.encode(payload, SECRET_KEY, algorithm="HS256")
+
+def verify_token(token):
+    """בודק אם טוקן JWT תקף ומחזיר את הנתונים שבו."""
+    try:
+        payload = jwt.decode(token, SECRET_KEY, algorithms=["HS256"])
+        return {"valid": True, "data": payload}
+    except jwt.ExpiredSignatureError:
+        return {"valid": False, "error": "Token has expired"}
+    except jwt.InvalidTokenError:
+        return {"valid": False, "error": "Invalid token"}
+
 
 def send_song(client_socket, song_name):
     song_name += ".mp3"

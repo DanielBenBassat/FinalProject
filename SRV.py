@@ -6,6 +6,8 @@ import logging
 import os
 from music_db import MusicDB
 import time
+import jwt
+import datetime
 
 
 IP = "127.0.0.1"
@@ -18,6 +20,8 @@ lock = threading.Lock()
 task_start = 0
 found = False
 ADDRESS_LIST = [("127.0.0.1", 2222)]
+SECRET_KEY = "my_secret_key"
+
 
 def background_task():
     db = MusicDB("my_db.db")
@@ -26,9 +30,33 @@ def background_task():
         time.sleep(15)
 
 
+def generate_token():
+    """יוצר טוקן JWT עם user_id וחותם עליו עם המפתח הסודי."""
+    payload = {
+        "exp": datetime.datetime.utcnow() + datetime.timedelta(hours=1),  # תוקף לשעה
+        "iat": datetime.datetime.utcnow(),  # זמן יצירה
+    }
+
+    token = jwt.encode(payload, SECRET_KEY, algorithm="HS256")
+    return token
+
+
+def verify_token(token):
+    """בודק אם טוקן JWT תקף ומחזיר את הנתונים שבו."""
+    try:
+        payload = jwt.decode(token, SECRET_KEY, algorithms=["HS256"])
+        return {"valid": True, "data": payload}
+    except jwt.ExpiredSignatureError:
+        return {"valid": False, "error": "Token has expired"}
+    except jwt.InvalidTokenError:
+        return {"valid": False, "error": "Invalid token"}
+
 def handle_client(client_socket):
     try:
         db = MusicDB("my_db.db")
+        dict = db.all_songs()
+        dict = pickle.dumps(dict)
+        token = generate_token()
         #enter to system
         temp = False
         while not temp:
@@ -40,7 +68,7 @@ def handle_client(client_socket):
                 username = data[0]
                 password = data[1]
                 db.add_user(username, password)
-                protocol.protocol_send(client_socket, "sig", ["good"])
+                protocol.protocol_send(client_socket, "sig", ["good", token, dict])
                 temp = True
             elif cmd == "log":
                 username = data[0]
@@ -53,7 +81,7 @@ def handle_client(client_socket):
                         protocol.protocol_send(client_socket, "log", ["False", "password"])
                 elif val:
                     temp = True
-                    protocol.protocol_send(client_socket, "log", ["True", "ok"])
+                    protocol.protocol_send(client_socket, "log", ["good", token, dict])
 
 
         #start working
