@@ -68,7 +68,7 @@ def get_address(client_socket, song_id):
     return address
 
 
-def get_song(song_id, server_address):
+def get_song(song_id, server_address, token):
     """
 
     :param song_id: int
@@ -82,19 +82,21 @@ def get_song(song_id, server_address):
         client_log.debug("Connection with media server successful!")
 
         cmd = "get"
-        data = [song_id]
+        data = [token, song_id]
         protocol_send(media_socket, cmd, data)
         logging_protocol("send", cmd, data)
 
         cmd, data = protocol_receive(media_socket)
         logging_protocol("received", cmd, data)
-
-        media_socket.close()
-        file_name = data[0]
-        if file_name != "not found":
-            with open(file_name, 'wb') as file:
-                file.write(data[1])
-            client_log.debug(f"File saved as {file_name}")
+        if data[0] == "token is not valid":
+            file_name = "token is not valid"
+        else:
+            media_socket.close()
+            file_name = data[0]
+            if file_name != "not found":
+                with open(file_name, 'wb') as file:
+                    file.write(data[1])
+                client_log.debug(f"File saved as {file_name}")
 
     except socket.error as e:
         client_log.debug(f"Connection failed: {e}")
@@ -103,13 +105,13 @@ def get_song(song_id, server_address):
         return file_name
 
 
-def listen_song(main_socket, song_id_dict):
+def listen_song(main_socket, song_id_dict, token):
     song = input("Enter song's name: ")
     if song in song_id_dict:
         song_id = song_id_dict[song][1]
         media_server_address = get_address(main_socket, song_id)
-        file_name = get_song(song_id, media_server_address)
-        if file_name != "error":
+        file_name = get_song(song_id, media_server_address, token)
+        if file_name != "error" and file_name != "token is not valid":
             q.add_to_queue(file_name)
             client_log.debug(file_name + " was added to queue")
 
@@ -137,7 +139,7 @@ def get_address_new_song(client_socket, song_name, artist):
     return song_id, address
 
 
-def post_song(file_path, id, server_address):
+def post_song(file_path, id, server_address, token):
     """
 
     :param file_path: str
@@ -154,15 +156,17 @@ def post_song(file_path, id, server_address):
             song_bytes = file.read()
 
         cmd = "pst"
-        data = [id, song_bytes]
+        data = [token, id, song_bytes]
         protocol_send(media_socket, cmd, data)
         logging_protocol("send", cmd, data)
 
         cmd, data = protocol_receive(media_socket)
         logging_protocol("received", cmd, data)
-
-        val = data[0]
-        media_socket.close()
+        if data[0] == "token is not valid":
+            val = False
+        else:
+            val = data[0]
+            media_socket.close()
 
     except socket.error as e:
         client_log.debug(f"Connection failed: {e}")
@@ -223,7 +227,7 @@ def main():
                 if cmd == "exit":
                     break
                 elif cmd == "listen":
-                    listen_song(main_socket, song_id_dict)
+                    listen_song(main_socket, song_id_dict, token)
 
                 elif cmd == "add":
                     song_name = input("Enter song's name: ")
@@ -231,7 +235,7 @@ def main():
                     file_path = input("Enter file path: ")
                     if os.path.isfile(file_path):
                         song_id, media_server_address = get_address_new_song(main_socket, song_name, artist)
-                        val = post_song(file_path, song_id, media_server_address)
+                        val = post_song(file_path, song_id, media_server_address, token)
                         if val == "good":
                             client_log.debug("post song succeeded")
                         elif val == "error":

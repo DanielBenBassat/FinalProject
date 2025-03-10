@@ -33,7 +33,7 @@ def background_task():
 def generate_token():
     """יוצר טוקן JWT עם user_id וחותם עליו עם המפתח הסודי."""
     payload = {
-        "exp": datetime.datetime.utcnow() + datetime.timedelta(hours=1),  # תוקף לשעה
+        "exp": datetime.datetime.utcnow() + datetime.timedelta(minutes=1),  # תוקף לשעה
         "iat": datetime.datetime.utcnow(),  # זמן יצירה
     }
 
@@ -86,9 +86,7 @@ def handle_client(client_socket):
 
         #start working
 
-        dict = db.all_songs()
-        dict = pickle.dumps(dict)
-        protocol.protocol_send(client_socket, "str", [dict])
+
 
         while True:
             try:

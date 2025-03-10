@@ -61,18 +61,26 @@ def handle_client(client_socket, client_address):
         if msg is not None:
             cmd = msg[0]
             data = msg[1]
-            if cmd == "get": # [name]
-                song_name = data[0]
-                send_song(client_socket, song_name)
-            elif cmd == "pst": # [name ,file]
-                name = data[0]
-                file = data[1]
-                is_worked = add_song(file, name)
-                if is_worked:
-                    val = "good"
-                else:
-                    val = "error"
-                protocol_send(client_socket, "pst", [val])
+            token = data[0]
+            valid = verify_token(token)
+            if not valid.get("valid"):
+                print("token is not valid")
+                protocol_send(client_socket, cmd, ["token is not valid"])
+            elif valid.get("valid"):
+                print("token is valid")
+                if cmd == "get": # [name]
+                    token = data[0]
+                    song_name = data[1]
+                    send_song(client_socket, song_name)
+                elif cmd == "pst": # [name ,file]
+                    name = data[1]
+                    file = data[2]
+                    is_worked = add_song(file, name)
+                    if is_worked:
+                        val = "good"
+                    else:
+                        val = "error"
+                    protocol_send(client_socket, "pst", [val])
 
     except socket.error as err:
         print('Socket error on client connection: ' + str(err))
