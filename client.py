@@ -37,7 +37,7 @@ MAIN_SERVER_ADDR = ("127.0.0.1", 5555)
 q = SongsQueue()
 
 
-def logging_protocol(func ,cmd, data):
+def logging_protocol(func, cmd, data):
     try:
         msg = func + " : " + cmd
         for i in data:
@@ -48,7 +48,7 @@ def logging_protocol(func ,cmd, data):
         client_log.debug(e)
 
 
-def get_address(client_socket, song_id):
+def get_address(client_socket, song_id, token):
     """
     sends the main server a song id and receive an address of the media server that has the song
     :param client_socket: socket
@@ -56,12 +56,15 @@ def get_address(client_socket, song_id):
     :return: address of the media server that has the required song
     """
     cmd = "gad"
-    data = [song_id]
+    data = [token, song_id]
     protocol_send(client_socket, cmd, data)
     logging_protocol("send", cmd, data)
 
     cmd, data = protocol_receive(client_socket)
     logging_protocol("received", cmd, data)
+    if data[0] == "Token has expired":
+        return 'Token has expired'
+
     ip = data[0]
     port = int(data[1])
     address = (ip, port)
@@ -88,10 +91,11 @@ def get_song(song_id, server_address, token):
 
         cmd, data = protocol_receive(media_socket)
         logging_protocol("received", cmd, data)
+        media_socket.close()
         if data[0] == "token is not valid":
             file_name = "token is not valid"
         else:
-            media_socket.close()
+
             file_name = data[0]
             if file_name != "not found":
                 with open(file_name, 'wb') as file:
@@ -109,14 +113,17 @@ def listen_song(main_socket, song_id_dict, token):
     song = input("Enter song's name: ")
     if song in song_id_dict:
         song_id = song_id_dict[song][1]
-        media_server_address = get_address(main_socket, song_id)
-        file_name = get_song(song_id, media_server_address, token)
-        if file_name != "error" and file_name != "token is not valid":
-            q.add_to_queue(file_name)
-            client_log.debug(file_name + " was added to queue")
+        media_server_address = get_address(main_socket, song_id, token)
+        if media_server_address == 'Token has expired':
+            return 'Token has expired'
+        else:
+            file_name = get_song(song_id, media_server_address, token)
+            if file_name != "error" and file_name != "token is not valid":
+                q.add_to_queue(file_name)
+                client_log.debug(file_name + " was added to queue")
+            return 'good'
 
-
-def get_address_new_song(client_socket, song_name, artist):
+def get_address_new_song(client_socket, song_name, artist, token):
     """
     gets an id and a server address for adding new song
     :param client_socket: socket
@@ -125,7 +132,7 @@ def get_address_new_song(client_socket, song_name, artist):
     :return:
     """
     cmd = "pad"
-    data = [song_name, artist]
+    data = [token, song_name, artist]
     protocol_send(client_socket, cmd, data)
     logging_protocol("send", cmd, data)
 
@@ -175,84 +182,94 @@ def post_song(file_path, id, server_address, token):
 
 
 def start_client(main_socket):
-    cmd = 0
-    while cmd != "1" and cmd != "2":
-        cmd = input("enter 1 to sign up or 2 to log in: ")
+    temp = False
+    while not temp:
+        cmd = 0
+        while cmd != "1" and cmd != "2":
+            cmd = input("enter 1 to sign up or 2 to log in: ")
 
-    if cmd == "1":
-        username = input("choose your username: ")
-        password = input("enter password")
-        password2 = input("verify password")
-        if password == password2 and password is not None:
-            cmd = "sig"
+        if cmd == "1":
+            username = input("choose your username: ")
+            password = input("enter password")
+            password2 = input("verify password")
+            if password == password2 and password is not None:
+                cmd = "sig"
+                data = [username, password]
+                protocol_send(main_socket, cmd, data)
+                logging_protocol("send", cmd, data)
+
+                cmd, data = protocol_receive(main_socket)
+                logging_protocol("received", cmd, data)
+
+        elif cmd == "2":
+            username = input("choose your username: ")
+            password = input("enter password")
+            cmd = "log"
             data = [username, password]
             protocol_send(main_socket, cmd, data)
             logging_protocol("send", cmd, data)
 
             cmd, data = protocol_receive(main_socket)
             logging_protocol("received", cmd, data)
+        if data[0] == "True":
+            temp = True
+        else:
+            temp = False
 
-    elif cmd == "2":
-        username = input("choose your username: ")
-        password = input("enter password")
-        cmd = "log"
-        data = [username, password]
-        protocol_send(main_socket, cmd, data)
-        logging_protocol("send", cmd, data)
-
-        cmd, data = protocol_receive(main_socket)
-        logging_protocol("received", cmd, data)
-    if data[0] == "good":
-        data[0] = True
-    else:
-        data[0] = False
     return data
-
 
 def main():
     try:
-        main_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-        main_socket.connect(MAIN_SERVER_ADDR)
-        temp = [False]
-        while not temp[0]:
-            temp = start_client(main_socket)
+        temp = True
+        while temp:
+            main_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+            main_socket.connect(MAIN_SERVER_ADDR)
 
-        token = temp[1]
-        song_id_dict = pickle.loads(temp[2])
-        print(song_id_dict)
+            data = start_client(main_socket)
 
-        try:
-            while True:
-                cmd = input("Enter command: listen, add, or exit: ")
-                if cmd == "exit":
-                    break
-                elif cmd == "listen":
-                    listen_song(main_socket, song_id_dict, token)
+            token = data[1]
+            song_id_dict = pickle.loads(data[2])
+            print(song_id_dict)
 
-                elif cmd == "add":
-                    song_name = input("Enter song's name: ")
-                    artist = input("Enter artist's name: ")
-                    file_path = input("Enter file path: ")
-                    if os.path.isfile(file_path):
-                        song_id, media_server_address = get_address_new_song(main_socket, song_name, artist)
-                        val = post_song(file_path, song_id, media_server_address, token)
-                        if val == "good":
-                            client_log.debug("post song succeeded")
-                        elif val == "error":
-                            client_log.debug("post song failed")
+            try:
+                while True:
+                    cmd = input("Enter command: listen, add, or exit: ")
+                    if cmd == "exit":
+                        temp = False
+                        break
+                    elif cmd == "listen":
+                        msg = listen_song(main_socket, song_id_dict, token)
+                        if msg == 'Token has expired':
+                            break
+                    elif cmd == "add":
+                        song_name = input("Enter song's name: ")
+                        artist = input("Enter artist's name: ")
+                        file_path = input("Enter file path: ")
+                        if os.path.isfile(file_path):
+                            song_id, media_server_address = get_address_new_song(main_socket, song_name, artist, token)
+                            val = post_song(file_path, song_id, media_server_address, token)
+                            if val == "good":
+                                client_log.debug("post song succeeded")
+                            elif val == "error":
+                                client_log.debug("post song failed")
 
+                    else:
+                        print("Try again")
+
+            except socket.error as err:
+                client_log.debug(f"Received socket error: {err}")
+
+            finally:
+                if temp:
+                    client_log.debug("token has expired, log in again")
                 else:
-                    print("Try again")
-
-        except socket.error as err:
-            client_log.debug(f"Received socket error: {err}")
-
-        finally:
-            client_log.debug("Client finish")
-            main_socket.close()
+                    client_log.debug("Client finish")
+                main_socket.close()
 
     except socket.error as err:
         client_log.debug(f"Received socket error: {err}")
+    finally:
+        client_log.debug("Client finish")
 
 
 def player():
