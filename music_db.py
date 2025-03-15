@@ -63,10 +63,11 @@ class MusicDB(DataBase):
             id = i[0]
             dict[name] = (artist, id)
         return dict
+
+
     def find_address(self, address_dict):
         index = random.randint(0, len(address_dict))
         return address_dict[0]
-
 
     #post song
     def add_song(self, song_name, artist, address_list):
@@ -104,15 +105,7 @@ class MusicDB(DataBase):
         else:
             return None
 
-    def verify_songs(self):
-        songs_pending = self.select("songs", '*', {"setting1": "pending", "setting2": "pending"}, "OR")
-        for song in songs_pending:
-            song_id = song[0]
-            ip1 = song[3]
-            port1 = song[4]
-            file_name = self.get_song(song_id, (ip1, int(port1)))
-            if file_name != "error":
-                self.update("songs", {"setting1": "verified"}, {"id": song_id})
+
 
 
     def get_song(self, song_id, server_address):
@@ -142,8 +135,55 @@ class MusicDB(DataBase):
         finally:
             return file_name
 
+    def post_song(file_path, id, server_address, token):
+        """
+
+        :param file_path: str
+        :param id: int
+        :param server_address: tuple of ip(str) and port(int)
+        :return:
+        """
+        val = "error"
+        try:
+            media_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+            media_socket.connect(server_address)
+            with open(file_path, "rb") as file:
+                song_bytes = file.read()
+
+            cmd = "pst"
+            data = [token, id, song_bytes]
+            protocol_send(media_socket, cmd, data)
+
+            cmd, data = protocol_receive(media_socket)
+            if data[0] == "token is not valid":
+                val = False
+            else:
+                val = data[0]
+                media_socket.close()
+
+        except socket.error as e:
+            print(f"Connection failed: {e}")
+        finally:
+            return val
+
 
     #def add_playlist
-    #turn active
-    #def create_key(self, user_id):
+    def verify_songs(self):
+        songs_pending = self.select("songs", '*', {"setting1": "pending", "setting2": "pending"}, "OR")
+        songs_in_one_server = self.select("songs", '*', {"setting1": "verified", "setting2": None})
+        for song in songs_pending:
+            song_id = song[0]
+            ip1 = song[3]
+            port1 = song[4]
+            file_name = self.get_song(song_id, (ip1, int(port1)))
+            if file_name != "error":
+                self.update("songs", {"setting1": "verified"}, {"id": song_id})
+                if song in songs_in_one_server:
+                    self.backup_songs(song, file_name)
+
+    def backup_songs(self, song, file_name):
+        song_id = song[0]
+
+
+
 

@@ -18,7 +18,7 @@ LOG_FORMAT = '%(levelname)s | %(asctime)s | %(name)s | %(message)s'
 
 
 def setup_logger(name, log_file):
-    """Set up a logger that logs to a specific file."""
+    """Set up a logger that logs to a specific file"""
     logger = logging.getLogger(name)
     logger.setLevel(logging.DEBUG)
 
