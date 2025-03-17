@@ -6,9 +6,9 @@ import threading
 import jwt
 import datetime
 SECRET_KEY= "my_secret_key"
-FOLDER = r"C:\musicCyber"
+FOLDER = r"C:\server2_musicCyber"
 IP = '127.0.0.1'
-PORT = 2222
+PORT = 3333
 QUEUE_LEN = 1
 
 

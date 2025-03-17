@@ -4,10 +4,13 @@ import socket
 from protocol import protocol_receive
 from protocol import protocol_send
 import os
+import jwt
+import datetime
 
 class MusicDB(DataBase):
-    def __init__(self, name):
+    def __init__(self, name, address_list):
         super().__init__(name)
+        self.address_list = address_list
         songs_columns = {"id": "INTEGER PRIMARY KEY AUTOINCREMENT",
                             "name": "TEXT NOT NULL",
                             "artist" : "TEXT NOT NULL",
@@ -64,15 +67,14 @@ class MusicDB(DataBase):
             dict[name] = (artist, id)
         return dict
 
-
-    def find_address(self, address_dict):
-        index = random.randint(0, len(address_dict))
-        return address_dict[0]
+    def find_address(self):
+        index = random.randint(0, len(self.address_list))
+        return self.address_list[index]
 
     #post song
-    def add_song(self, song_name, artist, address_list):
+    def add_song(self, song_name, artist):
         data = {"name": song_name, "artist": artist}
-        address = self.find_address(address_list)
+        address = self.find_address()
         ip = address[0]
         port = address[1]
         data["IP1"] = address[0]
@@ -108,7 +110,7 @@ class MusicDB(DataBase):
 
 
 
-    def get_song(self, song_id, server_address):
+    def get_song(self, token, song_id, server_address):
         """
 
         :param song_id: int
@@ -120,11 +122,11 @@ class MusicDB(DataBase):
             media_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
             media_socket.connect(server_address)
             print("Connection with media server successful!")
-            protocol_send(media_socket, "get", [song_id])
+            protocol_send(media_socket, "get", [token, song_id])
             cmd, data = protocol_receive(media_socket) # "get" , [file_name, file_bytes]
             media_socket.close()
             file_name = data[0]
-            if file_name != "not found":
+            if file_name != "error":
                 with open(file_name, 'wb') as file:
                     file.write(data[1])
                 print(f"File saved as {file_name}")
@@ -133,9 +135,10 @@ class MusicDB(DataBase):
             print(f"Connection failed: {e}")
 
         finally:
+            print("file_name" + file_name)
             return file_name
 
-    def post_song(file_path, id, server_address, token):
+    def post_song(self, file_path, id, server_address, token):
         """
 
         :param file_path: str
@@ -155,7 +158,7 @@ class MusicDB(DataBase):
             protocol_send(media_socket, cmd, data)
 
             cmd, data = protocol_receive(media_socket)
-            if data[0] == "token is not valid":
+            if data[0] == "error":
                 val = False
             else:
                 val = data[0]
@@ -167,22 +170,53 @@ class MusicDB(DataBase):
             return val
 
 
-    #def add_playlist
-    def verify_songs(self):
-        songs_pending = self.select("songs", '*', {"setting1": "pending", "setting2": "pending"}, "OR")
-        songs_in_one_server = self.select("songs", '*', {"setting1": "verified", "setting2": None})
-        for song in songs_pending:
-            song_id = song[0]
-            ip1 = song[3]
-            port1 = song[4]
-            file_name = self.get_song(song_id, (ip1, int(port1)))
-            if file_name != "error":
-                self.update("songs", {"setting1": "verified"}, {"id": song_id})
-                if song in songs_in_one_server:
-                    self.backup_songs(song, file_name)
+    def verify_and_backup_songs(self, token, ADDRESS_LIST):
+        """
+        מאמת שירים שנמצאים במצב 'pending' ומעדכן את הסטטוס שלהם אם הם זמינים.
 
-    def backup_songs(self, song, file_name):
-        song_id = song[0]
+        - בודק אילו שירים מסומנים כ-pending במסד הנתונים.
+        - מנסה להביא את הקובץ מהשרת שצוין.
+        - אם הקובץ נמצא, מעדכן את הסטטוס ל-'verified'.
+        - אם השיר נמצא רק בשרת אחד, מבצע גיבוי.
+
+        :raises Exception: במקרה של שגיאה כללית.
+        """
+        try:
+            # שליפת שירים בהמתנה לאימות
+            songs_pending = self.select("songs", '*', {"setting1": "pending", "setting2": "pending"}, "OR")
+            songs_in_one_server = self.select("songs", '*', {"setting1": "verified", "setting2": None})
+
+            for song in songs_pending:
+                try:
+                    song_id = song[0]
+                    ip1 = song[3]
+                    port1 = song[4]
+
+                    # ניסיון לקבל את השיר מהשרת
+                    file_name = self.get_song(token, song_id, (ip1, int(port1)))
+                    if file_name != "error":
+                        self.update("songs", {"setting1": "verified"}, {"id": song_id})
+
+                        # אם השיר נמצא רק בשרת אחד, מבצעים גיבוי
+                        if song in songs_in_one_server:
+                            address = (ip1, port1)
+                            temp = False
+                            while not temp:
+                                address2 = self.find_address()
+                                if address2 != address:
+                                    temp = True
+                            self.post_song(file_name, song_id, address2, token)
+
+                except ValueError as e:
+                    print(f"Error converting port to integer for song ID {song_id}: {e}")
+                except Exception as e:
+                    print(f"Unexpected error processing song ID {song_id}: {e}")
+
+        except Exception as e:
+            print(f"Database or connection error in verify_songs: {e}")
+
+
+
 
 
 

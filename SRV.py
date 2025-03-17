@@ -15,7 +15,7 @@ IP = "127.0.0.1"
 PORT = 5555
 CLIENTS_SOCKETS = []
 THREADS = []
-ADDRESS_LIST = [("127.0.0.1", 2222)]
+ADDRESS_LIST = [("127.0.0.1", 2222), ("127.0.0.1", 333)]
 SECRET_KEY = "my_secret_key"
 
 LOG_FORMAT = '%(levelname)s | %(asctime)s | %(message)s'
@@ -36,9 +36,10 @@ def logging_protocol(func, cmd, data):
 
 
 def background_task():
-    db = MusicDB("my_db.db")
+    db = MusicDB("my_db.db", ADDRESS_LIST)
+    token = generate_infinity_token()
     while True:
-        db.verify_songs()
+        db.verify_and_backup_songs(token, ADDRESS_LIST)
         time.sleep(15)
 
 
@@ -51,6 +52,17 @@ def generate_token():
     token = jwt.encode(payload, SECRET_KEY, algorithm="HS256")
     return token
 
+def generate_infinity_token():
+    """
+    יוצר טוקן JWT ללא תפוגה, המכיל את זמן היצירה.
+
+    :return: מחרוזת טוקן JWT חתום עם HS256.
+    """
+    payload = {
+        "iat": datetime.datetime.utcnow(),  # זמן יצירה
+    }
+    token = jwt.encode(payload, SECRET_KEY, algorithm="HS256")
+    return token
 
 def verify_token(token):
     """בודק אם טוקן JWT תקף ומחזיר את הנתונים שבו."""
@@ -65,7 +77,7 @@ def verify_token(token):
 
 def handle_client(client_socket, client_address):
     try:
-        db = MusicDB("my_db.db")
+        db = MusicDB("my_db.db", ADDRESS_LIST)
         songs_dict = db.all_songs()
         songs_dict = pickle.dumps(songs_dict)
         token = generate_token()
@@ -138,7 +150,7 @@ def handle_client(client_socket, client_address):
                     elif cmd == "pad":  # [name, artist]
                         name = data[1]
                         artist = data[2]
-                        id, ip, port = db.add_song(name, artist, ADDRESS_LIST)
+                        id, ip, port = db.add_song(name, artist)
                         id = id[0][0]
                         cmd = "pad"
                         data = [id, ip, port]

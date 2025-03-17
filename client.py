@@ -211,7 +211,7 @@ def start_client(main_socket):
 
             cmd, data = protocol_receive(main_socket)
             logging_protocol("received", cmd, data)
-        if data[0] == "True":
+        if data[0] == "good":
             temp = True
         else:
             temp = False
@@ -226,7 +226,7 @@ def main():
             main_socket.connect(MAIN_SERVER_ADDR)
 
             data = start_client(main_socket)
-
+            print(data)
             token = data[1]
             song_id_dict = pickle.loads(data[2])
             print(song_id_dict)
