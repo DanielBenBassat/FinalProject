@@ -15,7 +15,7 @@ IP = "127.0.0.1"
 PORT = 5555
 CLIENTS_SOCKETS = []
 THREADS = []
-ADDRESS_LIST = [("127.0.0.1", 2222), ("127.0.0.1", 333)]
+ADDRESS_LIST = [("127.0.0.1", 2222), ("127.0.0.1", 3333)]
 SECRET_KEY = "my_secret_key"
 
 LOG_FORMAT = '%(levelname)s | %(asctime)s | %(message)s'
@@ -119,11 +119,7 @@ def handle_client(client_socket, client_address):
 
         while True:
             try:
-                msg = protocol_receive(client_socket)
-                if msg is None:
-                    logging.debug("[ERROR] Received None, closing connection.")
-                    break
-                cmd, data = msg
+                cmd, data = protocol_receive(client_socket)
                 logging_protocol("receive", cmd, data)
                 token = data[0]
                 valid = verify_token(token)

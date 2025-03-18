@@ -68,7 +68,7 @@ class MusicDB(DataBase):
         return dict
 
     def find_address(self):
-        index = random.randint(0, len(self.address_list))
+        index = random.randint(0, len(self.address_list)-1)
         return self.address_list[index]
 
     #post song
@@ -119,6 +119,7 @@ class MusicDB(DataBase):
         """
         file_name = "error"
         try:
+            print(server_address)
             media_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
             media_socket.connect(server_address)
             print("Connection with media server successful!")
@@ -184,8 +185,9 @@ class MusicDB(DataBase):
         try:
             # שליפת שירים בהמתנה לאימות
             songs_pending = self.select("songs", '*', {"setting1": "pending", "setting2": "pending"}, "OR")
-            songs_in_one_server = self.select("songs", '*', {"setting1": "verified", "setting2": None})
-
+            songs_in_one_server = self.select("songs", '*', {"setting1": "verified", "setting2": ""}, "AND")
+            print(songs_pending)
+            print(songs_in_one_server)
             for song in songs_pending:
                 try:
                     song_id = song[0]
@@ -195,17 +197,19 @@ class MusicDB(DataBase):
                     # ניסיון לקבל את השיר מהשרת
                     file_name = self.get_song(token, song_id, (ip1, int(port1)))
                     if file_name != "error":
-                        self.update("songs", {"setting1": "verified"}, {"id": song_id})
+                        self.update("songs", {"setting1": "verified", "setting2": ""}, {"id": song_id})
 
                         # אם השיר נמצא רק בשרת אחד, מבצעים גיבוי
-                        if song in songs_in_one_server:
-                            address = (ip1, port1)
-                            temp = False
-                            while not temp:
-                                address2 = self.find_address()
-                                if address2 != address:
-                                    temp = True
-                            self.post_song(file_name, song_id, address2, token)
+                        #if song in songs_in_one_server:
+                        address = (ip1, port1)
+                        temp = False
+                        print(temp)
+                        while not temp:
+                            address2 = self.find_address()
+                            if address2 != address:
+                                temp = True
+                        print(address2)
+                        self.post_song(file_name, song_id, address2, token)
 
                 except ValueError as e:
                     print(f"Error converting port to integer for song ID {song_id}: {e}")
