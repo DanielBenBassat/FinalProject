@@ -211,7 +211,7 @@ def start_client(main_socket):
 
             cmd, data = protocol_receive(main_socket)
             logging_protocol("received", cmd, data)
-        if data[0] == "good":
+        if data[0] == "True":
             temp = True
         else:
             temp = False
