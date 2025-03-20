@@ -92,8 +92,8 @@ def get_song(song_id, server_address, token):
         cmd, data = protocol_receive(media_socket)
         logging_protocol("received", cmd, data)
         media_socket.close()
-        if data[0] == "token is not valid":
-            file_name = "token is not valid"
+        if data[0] == "Invalid token":
+            file_name = "Invalid token"
         else:
 
             file_name = data[0]
@@ -118,10 +118,35 @@ def listen_song(main_socket, song_id_dict, token):
             return 'Token has expired'
         else:
             file_name = get_song(song_id, media_server_address, token)
-            if file_name != "error" and file_name != "token is not valid":
-                q.add_to_queue(file_name)
-                client_log.debug(file_name + " was added to queue")
+            if file_name == "error":
+                return "error"
+            elif file_name == "Invalid token":
+                return "Invalid token"
+            q.add_to_queue(file_name)
+            client_log.debug(file_name + " was added to queue")
             return 'good'
+
+def add_song(main_socket, token):
+    song_name = input("Enter song's name: ")
+    artist = input("Enter artist's name: ")
+    #file_path = input("Enter file path: ")
+    song = input("Enter file path: ")
+    file_path = fr"C:\newSongs\{song}.mp3"
+    if os.path.isfile(file_path):
+        data = get_address_new_song(main_socket, song_name, artist, token)
+        if data[0] == "Invalid token" or data[0] == "Token has expired" or data[0] == "error":
+            return data[0]
+        else:
+            song_id = data[0]
+            media_server_address = data[1]
+            val = post_song(file_path, song_id, media_server_address, token)
+            if val == "good":
+                return "post song succeeded"
+            elif val == "Invalid token":
+                return "Invalid token"
+            else:
+                "post song has failed"
+
 
 def get_address_new_song(client_socket, song_name, artist, token):
     """
@@ -138,12 +163,14 @@ def get_address_new_song(client_socket, song_name, artist, token):
 
     cmd, data = protocol_receive(client_socket) # "pad", [id, ip, port]
     logging_protocol("received", cmd, data)
-
-    song_id = int(data[0])
-    ip = data[1]
-    port = int(data[2])
-    address = (ip, port)
-    return song_id, address
+    if data[0] == "Invalid token" or data[0] == "Token has expired" or data[0] == "error":
+        return data
+    else:
+        song_id = int(data[0])
+        ip = data[1]
+        port = int(data[2])
+        address = (ip, port)
+        return [song_id, address]
 
 
 def post_song(file_path, id, server_address, token):
@@ -169,11 +196,12 @@ def post_song(file_path, id, server_address, token):
 
         cmd, data = protocol_receive(media_socket)
         logging_protocol("received", cmd, data)
-        if data[0] == "token is not valid":
-            val = False
+        if data[0] == "Invalid token":
+            val = "Invalid token"
         else:
             val = data[0]
             media_socket.close()
+            val == "good"
 
     except socket.error as e:
         client_log.debug(f"Connection failed: {e}")
@@ -226,7 +254,6 @@ def main():
             main_socket.connect(MAIN_SERVER_ADDR)
 
             data = start_client(main_socket)
-            print(data)
             token = data[1]
             song_id_dict = pickle.loads(data[2])
             print(song_id_dict)
@@ -242,16 +269,13 @@ def main():
                         if msg == 'Token has expired':
                             break
                     elif cmd == "add":
-                        song_name = input("Enter song's name: ")
-                        artist = input("Enter artist's name: ")
-                        file_path = input("Enter file path: ")
-                        if os.path.isfile(file_path):
-                            song_id, media_server_address = get_address_new_song(main_socket, song_name, artist, token)
-                            val = post_song(file_path, song_id, media_server_address, token)
-                            if val == "good":
-                                client_log.debug("post song succeeded")
-                            elif val == "error":
-                                client_log.debug("post song failed")
+                        msg = add_song(main_socket, token)
+                        client_log.debug(msg)
+                        if msg == 'Token has expired' or msg == "Invalid token":
+                            break
+
+
+
 
                     else:
                         print("Try again")
@@ -261,7 +285,7 @@ def main():
 
             finally:
                 if temp:
-                    client_log.debug("token has expired, log in again")
+                    client_log.debug("Token has expired, log in again")
                 else:
                     client_log.debug("Client finish")
                 main_socket.close()

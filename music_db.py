@@ -185,7 +185,6 @@ class MusicDB(DataBase):
         try:
             # שליפת שירים בהמתנה לאימות
             songs_pending = self.select("songs", '*', {"setting1": "pending", "setting2": "pending"}, "OR")
-            print(songs_pending)
             for song in songs_pending:
                 try:
                     song_id = song[0]

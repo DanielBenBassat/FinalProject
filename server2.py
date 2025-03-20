@@ -98,7 +98,6 @@ def handle_client(client_socket, client_address):
         print('Socket error on client connection: ' + str(err))
     finally:
         print("Client disconnected")
-        client_socket.close()
 
 
 def main():
