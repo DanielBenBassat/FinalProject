@@ -46,7 +46,7 @@ def background_task():
 def generate_token():
     """יוצר טוקן JWT עם user_id וחותם עליו עם המפתח הסודי."""
     payload = {
-        "exp": datetime.datetime.utcnow() + datetime.timedelta(seconds = 10),  # תוקף לשעה
+        "exp": datetime.datetime.utcnow() + datetime.timedelta(hours=1),  # תוקף לשעה
         "iat": datetime.datetime.utcnow(),  # זמן יצירה
     }
     token = jwt.encode(payload, SECRET_KEY, algorithm="HS256")
@@ -94,7 +94,7 @@ def handle_client(client_socket, client_address):
                     db.add_user(username, password)
 
                     cmd = "sig"
-                    data = ["good", token, songs_dict]
+                    data = ["True", token, songs_dict]
                     protocol_send(client_socket, cmd, data)
                     logging_protocol("send", cmd, data)
                     temp = True
@@ -125,7 +125,7 @@ def handle_client(client_socket, client_address):
                 valid = verify_token(token)
                 if not valid.get("valid"):
                     error = valid.get("error")
-                    print(error)
+                    #print(error)
                     data = [error]
                     protocol_send(client_socket, cmd, data)
                     logging_protocol("send", cmd, data)
@@ -149,7 +149,7 @@ def handle_client(client_socket, client_address):
                         id, ip, port = db.add_song(name, artist)
                         id = id[0][0]
                         cmd = "pad"
-                        data = [id, ip, port]
+                        data = [str(id), ip, port]
                         protocol_send(client_socket, cmd, data)
                         logging_protocol("send", cmd, data)
 

@@ -153,6 +153,8 @@ class MusicDB(DataBase):
             media_socket.connect(server_address)
             with open(file_path, "rb") as file:
                 song_bytes = file.read()
+            print("reading the file after getting it from server 1")
+            print(len(song_bytes))
 
             cmd = "pst"
             data = [token, id, song_bytes]
@@ -187,7 +189,7 @@ class MusicDB(DataBase):
             songs_pending = self.select("songs", '*', {"setting1": "pending", "setting2": "pending"}, "OR")
             for song in songs_pending:
                 try:
-                    song_id = song[0]
+                    song_id = str(song[0])
                     ip1 = song[3]
                     port1 = song[4]
 

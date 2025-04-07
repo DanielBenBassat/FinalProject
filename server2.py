@@ -82,11 +82,13 @@ def handle_client(client_socket, client_address):
         elif valid.get("valid"):
             print("token is valid")
             if cmd == "get": # [name]
-                song_name = data[1]
+                song_name = str(data[1])
                 send_song(client_socket, song_name)
             elif cmd == "pst": # [name ,file]
-                name = data[1]
+                name = str(data[1])
                 file = data[2]
+                print(len(file))
+
                 is_worked = add_song(file, name)
                 if is_worked:
                     val = "good"

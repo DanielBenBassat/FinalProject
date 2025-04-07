@@ -128,7 +128,8 @@ def listen_song(main_socket, song_id_dict, token):
 
 def add_song(main_socket, token):
     song_name = input("Enter song's name: ")
-    artist = input("Enter artist's name: ")
+    #artist = input("Enter artist's name: ")
+    artist = "daniel"
     #file_path = input("Enter file path: ")
     song = input("Enter file path: ")
     file_path = fr"C:\newSongs\{song}.mp3"
@@ -188,6 +189,7 @@ def post_song(file_path, id, server_address, token):
         client_log.debug("Connection with media server successful!")
         with open(file_path, "rb") as file:
             song_bytes = file.read()
+            print(len(song_bytes))
 
         cmd = "pst"
         data = [token, id, song_bytes]

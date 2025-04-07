@@ -59,6 +59,8 @@ def add_song(song_byte, song_name):
     try:
         file_name = song_name + ".mp3"
         file_path = os.path.join(FOLDER, file_name)
+        print("adding song")
+        print(len(song_byte))
         with open(file_path, 'wb') as file:
             file.write(song_byte)
         temp = True
@@ -74,7 +76,6 @@ def handle_client(client_socket, client_address):
         cmd, data = protocol_receive(client_socket)
         token = data[0]
         valid = verify_token(token)
-
         if not valid.get("valid"):
             print("token is not valid")
             protocol_send(client_socket, cmd, ["error", "token is not valid"])
@@ -82,10 +83,10 @@ def handle_client(client_socket, client_address):
         elif valid.get("valid"):
             print("token is valid")
             if cmd == "get": # [name]
-                song_name = data[1]
+                song_name = str(data[1])
                 send_song(client_socket, song_name)
             elif cmd == "pst": # [name ,file]
-                name = data[1]
+                name = str(data[1])
                 file = data[2]
                 is_worked = add_song(file, name)
                 if is_worked:
