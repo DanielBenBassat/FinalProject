@@ -254,7 +254,6 @@ def main():
         while temp:
             main_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
             main_socket.connect(MAIN_SERVER_ADDR)
-
             data = start_client(main_socket)
             token = data[1]
             song_id_dict = pickle.loads(data[2])
@@ -275,10 +274,6 @@ def main():
                         client_log.debug(msg)
                         if msg == 'Token has expired' or msg == "Invalid token":
                             break
-
-
-
-
                     else:
                         print("Try again")
 
