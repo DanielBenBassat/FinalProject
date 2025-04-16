@@ -4,7 +4,7 @@ import threading
 from time import sleep
 
 
-class MusicPlayer:
+class MusicPlayer2:
     def __init__(self):
         pygame.mixer.init()  # אתחול המיקסר של pygame
         self.is_playing = False
@@ -24,63 +24,64 @@ class MusicPlayer:
         self.is_paused = False  # Ensure is_paused starts as False
 
         while self.is_playing:
-         #   if self.is_paused:
-          #     while self.is_paused:
-           #         sleep(0.1)
-            #    pygame.mixer.music.unpause()  # המשך הניגון
-
             if not pygame.mixer.get_busy():  # Check if the song is over
                 self.is_playing = False
-                #self.is_paused = False  # Reset is_paused when song ends
                 break
 
             sleep(0.1)
-
-
-            #self.play_thread = threading.Thread(target=play)
-            #self.play_thread.start()
-
     def stop_song(self):
-        """
-        עוצר את השיר שמתנגן
-        """
-        if self.is_playing:
-            pygame.mixer.music.stop()  # מפסיק את הניגון
+        if self.is_playing and self.song:
+            self.song.stop()
+            print("stop song from player class")
             self.is_playing = False
             self.song = None
 
+import pygame
+
+
+class MusicPlayer:
+    def __init__(self):
+        pygame.mixer.init()
+        self.is_playing = False
+        self.is_paused = False
+        self.current_file = None
+
+    def play_song(self, file_path):
+        """
+        מנגן את השיר מהתחלה.
+        """
+        pygame.mixer.music.load(file_path)
+        pygame.mixer.music.play()
+        self.current_file = file_path
+        self.is_playing = True
+        self.is_paused = False
+        print(f"🎵 מנגן: {file_path}")
+
+    def stop_song(self):
+        """
+        עוצר את השיר לגמרי.
+        """
+        pygame.mixer.music.stop()
+        self.is_playing = False
+        self.is_paused = False
+        print("⏹️ השיר נעצר.")
+
     def pause_song(self):
         """
-        משהה את השיר שמתנגן
+        משהה את השיר.
         """
         if self.is_playing and not self.is_paused:
             pygame.mixer.music.pause()
             self.is_paused = True
+            print("⏸️ השיר הושהה.")
 
     def resume_song(self):
         """
-        ממשיך לנגן את השיר מהנקודה שהופסק
+        ממשיך לנגן שיר ממצב של השהייה.
         """
         if self.is_paused:
             pygame.mixer.music.unpause()
             self.is_paused = False
+            print("▶️ המשך ניגון.")
 
-    def forward(self, seconds=10):
-        """
-        מעביר את השיר קדימה בכמה שניות
-        """
-        if self.is_playing:
-            # דילוג קדימה
-            current_time = pygame.mixer.music.get_pos() / 1000  # הזמן הנוכחי בשניות
-            new_time = current_time + seconds
-            pygame.mixer.music.set_pos(new_time)
 
-    def backward(self, seconds=10):
-        """
-        מחזיר את השיר אחורה בכמה שניות
-        """
-        if self.is_playing:
-            # דילוג אחורה
-            current_time = pygame.mixer.music.get_pos() / 1000  # הזמן הנוכחי בשניות
-            new_time = max(0, current_time - seconds)  # מוודא שלא נעבור את תחילת השיר
-            pygame.mixer.music.set_pos(new_time)

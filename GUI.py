@@ -3,12 +3,15 @@ import pickle
 SCREEN_WIDTH = 600
 SCREEN_HEIGHT = 600
 from client_function import Client
+from player import MusicPlayer
+import os
+import threading
 
 class UserInterface:
     def __init__(self, root, client):
         self.root = root
         self.client = client
-        self.songs_list ={} #
+       #self.songs_list = {} #
         self.frames = {
             "welcome": self.create_welcome_screen(),
             "login": self.create_login_screen(),
@@ -18,8 +21,14 @@ class UserInterface:
             "profile": self.create_profile_screen(),
             "playlist": self.create_playlist_screen()
         }
-        # הצגת מסך ברירת המחדל (ברוכים הבאים)
+        self.playing = False  # מעקב מצב ניגון
+        self.counter = 0
+
+
+    # הצגת מסך ברירת המחדל (ברוכים הבאים)
         self.show_frame("welcome")
+
+
 
 
 
@@ -30,7 +39,10 @@ class UserInterface:
         # הצגת המסך הנבחר
         if frame_name == "home":
             self.frames["home"] = self.create_home_screen()
+
+
         self.frames[frame_name].pack(fill="both", expand=True)
+
 
     def create_welcome_screen(self):
         frame = tk.Frame(self.root, bg="black")
@@ -120,61 +132,99 @@ class UserInterface:
             # כאן אפשר להוסיף קוד להירשם למערכת ולעבור למסך הבא
             data = client.start_client("1", username, password)
             if data[0] == "True":
-                self.songs_list = pickle.loads(data[2])
+                #self.songs_list = pickle.loads(data[2])
                 self.show_frame("home")
         else:
             print("Passwords do not match!")
             # אפשר להוסיף הודעת שגיאה למשתמש במקרה של חוסר התאמה
+    def create_music_player_bar(self, main_frame):
+        music_player = tk.Frame(main_frame, bg="blue", height=60)
+        music_player.pack(side="bottom", fill="x")
 
+        # פריים פנימי שמרכז את כפתור ההפעלה
+        controls_frame = tk.Frame(music_player, bg="blue")
+        controls_frame.pack(side="top", fill="x", expand=True)
+
+        # כפתור שיר קודם - מצד שמאל
+        tk.Button(controls_frame, text="⏮", font=("Arial", 16), command=self.prev_song).pack(side="left", padx=20, pady=10)
+
+        # כפתור הפעלה/השהיה - במרכז
+        self.play_pause_button = tk.Button(controls_frame, text="▶", font=("Arial", 16), command=self.play_pause)
+        self.play_pause_button.pack(side="left", padx=20, pady=10, expand=True)
+
+    # כפתור שיר הבא - מצד ימין
+        tk.Button(controls_frame, text="⏭", font=("Arial", 16), command=self.next_song).pack(side="left", padx=20, pady=10)
+    def prev_song(self):
+        print("prev song")
+    def next_song(self):
+        print("next song")
+
+    def play_pause(self):
+
+        if self.playing:
+            self.play_pause_button.config(text="⏹")
+            if self.counter == 0:
+                player_thread = threading.Thread(target=self.client.player, args=("play",), daemon=True)
+            else:
+                player_thread = threading.Thread(target=self.client.player, args=("resume",), daemon=True)
+            self.counter = 1 + self.counter
+
+        else:
+            self.play_pause_button.config(text="▶")
+            player_thread = threading.Thread(target=self.client.player, args=("pause",), daemon=True)
+
+        player_thread.start()
+
+        self.playing = not self.playing
 
     def create_home_screen(self):
-        frame = tk.Frame(self.root, bg="white")
+        # פריים עיקרי של התוכן והניווט
+        main_frame = tk.Frame(self.root, bg="white")
+        main_frame.pack(side="top", fill="both", expand=True)
 
-        # קודם כל כפתורי ניווט בצד שמאל
-        self.add_navigation_buttons(frame, "home")
+        # ניווט בצד שמאל
+        self.add_navigation_buttons(main_frame, "home")
 
-        # מסגרת לתוכן המרכזי (כותרת + כותרות שירים)
-        content_frame = tk.Frame(frame, bg="white")
+        # נגן מוזיקה בתחתית רק במסך הבית
+        self.create_music_player_bar(main_frame)
+
+        # פריים לתוכן המרכזי
+        content_frame = tk.Frame(main_frame, bg="white")
         content_frame.pack(side="left", fill="both", expand=True, padx=20, pady=20)
 
-        # כותרת "Home"
+        # כותרת עליונה
         tk.Label(content_frame, text="Home", font=("Arial", 20), bg="white").pack(anchor="w", pady=10)
 
-        # מסגרת לשורת כותרות השירים
+        # שורת כותרות
         header_row = tk.Frame(content_frame, bg="white")
         header_row.pack(anchor="w", pady=5)
-
         tk.Label(header_row, text="Song Name", bg="white", font=("Arial", 12, "bold"), width=12, anchor="w").pack(side="left", padx=5)
         tk.Label(header_row, text="Artist", bg="white", font=("Arial", 12, "bold"), width=12, anchor="w").pack(side="left", padx=5)
         tk.Label(header_row, text="Play", bg="white", font=("Arial", 12, "bold"), width=12, anchor="w").pack(side="left", padx=5)
 
-        # לולאה שמייצרת תוויות עבור כל שיר ברשימה
-        for key, value in self.songs_list.items():
+        # רשימת שירים
+        for key, value in self.client.song_id_dict.items():
             song_name = key
             artist = value[0]
             song_id = value[1]
 
-            # מסגרת לכל שורה של שיר
             song_row = tk.Frame(content_frame, bg="white")
             song_row.pack(fill="x", pady=5)
 
-            # תווית של שם השיר
             tk.Label(song_row, text=song_name, bg="white", font=("Arial", 12), width=12, anchor="w").pack(side="left", padx=5)
-
-            # תווית של שם האומן
             tk.Label(song_row, text=artist, bg="white", font=("Arial", 12), width=12, anchor="w").pack(side="left", padx=5)
-
-            # כפתור לנגינה
-            tk.Button(song_row, text="Play", command=lambda: self.play_song(song_id)).pack(side="left", padx=5)
+            tk.Button(song_row, text="choose", command=lambda sid=song_id: self.play_song(sid)).pack(side="left", padx=5)
 
 
 
-        return frame
+        return main_frame
 
 
     def play_song(self, song_id):
         print(song_id)
+        self.playing = True
         self.client.listen_song(song_id)
+
 
     def create_add_song_screen(self):
         frame = tk.Frame(self.root, bg="white")
@@ -279,12 +329,7 @@ class UserInterface:
         tk.Label(frame, text="Playlist", font=("Arial", 20)).pack(pady=20)
         return frame
 
-    def create_player_frame(self):
-        frame = tk.Frame(self.root, bg="black", height=60)
-        frame.pack_propagate(0)
-        frame.place(relx=0, rely=1.0, anchor='sw', relwidth=1.0, height=60)
-        tk.Label(frame, text="♪ Now Playing ♪", fg="white", bg="black").pack(side="left", padx=10)
-        return frame
+
 
 
 
@@ -295,7 +340,7 @@ class UserInterface:
         self.root.geometry("600x600")  # הגדרת גודל החלון
         self.root.mainloop()  # התחלת הלולאה של tkinter
 
-# יצירת החלון הראשי והפעלת הממשק
+# יצירת החלון הראשי וה
 if __name__ == "__main__":
     client = Client()
     root = tk.Tk()  # יצירת מופע חלון tkinter

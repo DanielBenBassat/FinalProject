@@ -24,6 +24,7 @@ class Client:
         self.main_socket.connect(self.MAIN_SERVER_ADDR)
 
         self.q = SongsQueue()
+        self.p = MusicPlayer()
 
         self.token = ""
         self.song_id_dict = {}
@@ -35,7 +36,7 @@ class Client:
         self.player_log = self.setup_logger("PlayerLogger", LOG_FILE_PLAYER)
 
         player_thread = threading.Thread(target=self.player, daemon=True)
-        player_thread.start()
+        #player_thread.start()
 
 
     def setup_logger(self, name, log_file):
@@ -267,10 +268,17 @@ class Client:
         return data
 
 
-    def player(self):
-        p = MusicPlayer()
-        while True:
+    def player(self, cmd):
+        print(cmd)
+        if cmd == "play":
+            print("playing")
             song_path = self.q.get_song()
             if os.path.exists(song_path):
                 self.player_log.debug("play song: " + song_path)
-                p.play_song(song_path)
+                self.p.play_song(song_path)
+        if cmd == "pause":
+            self.p.pause_song()
+            self.player_log.debug("pause song: ")
+        elif cmd == "resume":
+            self.p.resume_song()
+            self.player_log.debug("resume song: ")
