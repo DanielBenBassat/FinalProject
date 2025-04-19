@@ -5,7 +5,7 @@ import os
 class SongsQueue:
     def __init__(self):
         self.my_queue = queue.Queue() # queue of file's paths
-        self.previous_songs_queue = queue.Queue()
+        self.previous_songs_stack = []
         self.recent_song_path = ""
 
 
@@ -30,15 +30,17 @@ class SongsQueue:
                 continue
 
     def update_previous(self, file_path):
-        if self.previous_songs_queue.empty():
-            self.previous_songs_queue.put(file_path)
-        elif self.previous_songs_queue.qsize() == 1:
-            self.previous_songs_queue.put(file_path)
+        if not self.previous_songs_stack:
+            self.previous_songs_stack.append(file_path)
+        elif len(self.previous_songs_stack) == 1:
+            self.previous_songs_stack.append(file_path)
         else:
-            old_file_path = self.previous_songs_queue.get()
-            if os.path.exists(old_file_path):
-                os.remove(old_file_path)
-            self.previous_songs_queue.put(file_path)
+            old_file_path = self.previous_songs_stack.pop()
+            very_old_file_path = self.previous_songs_stack.pop()
+            if os.path.exists(very_old_file_path):
+                os.remove(very_old_file_path)
+            self.previous_songs_stack.append(old_file_path)
+            self.previous_songs_stack.append(file_path)
 
 
 

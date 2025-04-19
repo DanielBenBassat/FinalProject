@@ -156,7 +156,7 @@ class UserInterface:
         tk.Button(controls_frame, text="⏭", font=("Arial", 16), command=self.next_song).pack(side="left", padx=20, pady=10)
     def prev_song(self):
         print("prev song")
-        player_thread = threading.Thread(target=self.client.player, args=("play",), daemon=True)
+        player_thread = threading.Thread(target=self.client.player, args=("prev",), daemon=True)
         player_thread.start()
     def next_song(self):
         print("next song")

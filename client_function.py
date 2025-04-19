@@ -289,3 +289,10 @@ class Client:
                 if os.path.exists(song_path):
                     self.player_log.debug("play song: " + song_path)
                     self.p.play_song(song_path)
+        elif cmd == "prev":
+            if self.q.previous_songs_stack:
+                self.p.stop_song()
+                song_path = self.q.previous_songs_stack.pop()
+                if os.path.exists(song_path):
+                    self.player_log.debug("play song: " + song_path)
+                    self.p.play_song(song_path)
