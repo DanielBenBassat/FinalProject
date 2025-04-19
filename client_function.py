@@ -35,7 +35,7 @@ class Client:
         self.client_log = self.setup_logger("ClientLogger", LOG_FILE_CLIENT)
         self.player_log = self.setup_logger("PlayerLogger", LOG_FILE_PLAYER)
 
-        player_thread = threading.Thread(target=self.player, daemon=True)
+        #player_thread = threading.Thread(target=self.player, daemon=True)
         #player_thread.start()
 
 
@@ -282,3 +282,10 @@ class Client:
         elif cmd == "resume":
             self.p.resume_song()
             self.player_log.debug("resume song: ")
+        elif cmd == "next":
+            if not self.q.my_queue.empty():
+                self.p.stop_song()
+                song_path = self.q.get_song()
+                if os.path.exists(song_path):
+                    self.player_log.debug("play song: " + song_path)
+                    self.p.play_song(song_path)

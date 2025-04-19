@@ -61,6 +61,7 @@ class MusicPlayer:
         """
         עוצר את השיר לגמרי.
         """
+
         pygame.mixer.music.stop()
         self.is_playing = False
         self.is_paused = False

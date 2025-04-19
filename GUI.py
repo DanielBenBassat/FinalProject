@@ -149,19 +149,24 @@ class UserInterface:
         tk.Button(controls_frame, text="⏮", font=("Arial", 16), command=self.prev_song).pack(side="left", padx=20, pady=10)
 
         # כפתור הפעלה/השהיה - במרכז
-        self.play_pause_button = tk.Button(controls_frame, text="▶", font=("Arial", 16), command=self.play_pause)
+        self.play_pause_button = tk.Button(controls_frame, text="▶", font=("Arial", 16), command=lambda: self.play_pause())
         self.play_pause_button.pack(side="left", padx=20, pady=10, expand=True)
 
     # כפתור שיר הבא - מצד ימין
         tk.Button(controls_frame, text="⏭", font=("Arial", 16), command=self.next_song).pack(side="left", padx=20, pady=10)
     def prev_song(self):
         print("prev song")
+        player_thread = threading.Thread(target=self.client.player, args=("play",), daemon=True)
+        player_thread.start()
     def next_song(self):
         print("next song")
+        player_thread = threading.Thread(target=self.client.player, args=("next",), daemon=True)
+        player_thread.start()
+        print(self.playing)
 
     def play_pause(self):
-
-        if self.playing:
+        print(self.playing)
+        if not self.playing:
             self.play_pause_button.config(text="⏹")
             if self.counter == 0:
                 player_thread = threading.Thread(target=self.client.player, args=("play",), daemon=True)
@@ -222,7 +227,7 @@ class UserInterface:
 
     def play_song(self, song_id):
         print(song_id)
-        self.playing = True
+        #self.playing = True
         self.client.listen_song(song_id)
 
 
