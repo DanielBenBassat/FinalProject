@@ -2,7 +2,7 @@ import tkinter as tk
 import pickle
 SCREEN_WIDTH = 600
 SCREEN_HEIGHT = 600
-from client_function import Client
+from client_class import Client
 from player import MusicPlayer
 import os
 import threading
