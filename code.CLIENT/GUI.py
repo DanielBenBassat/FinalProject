@@ -6,6 +6,7 @@ from client_class import Client
 from player import MusicPlayer
 import os
 import threading
+import time
 
 class UserInterface:
     def __init__(self, root, client):
@@ -27,9 +28,28 @@ class UserInterface:
 
     # הצגת מסך ברירת המחדל (ברוכים הבאים)
         self.show_frame("welcome")
+        self.root.protocol("WM_DELETE_WINDOW", self.closing)  # <- כאן זה קורה
 
 
 
+
+    def closing(self):
+        try:
+            if os.path.exists(self.client.q.old_song_path) and self.client.q.old_song_path != "":
+                os.remove(self.client.q.old_song_path)
+            if os.path.exists(self.client.q.prev_song_path) and self.client.q.prev_song_path != "":
+                os.remove(self.client.q.prev_song_path)
+            if os.path.exists(self.client.q.recent_song_path) and self.client.q.recent_song_path != "":
+                player_thread = threading.Thread(target=self.client.player, args=("shutdown",), daemon=True)
+                player_thread.start()
+                os.remove(self.client.q.recent_song_path)
+
+            self.client.main_socket.close()
+        except Exception as e:
+            print(e)
+        finally:
+            print("good bye")
+            self.root.destroy()  # <- שורת הקסם שחסרה
 
 
     def show_frame(self, frame_name):
@@ -347,7 +367,12 @@ class UserInterface:
 
 # יצירת החלון הראשי וה
 if __name__ == "__main__":
-    client = Client()
-    root = tk.Tk()  # יצירת מופע חלון tkinter
-    app = UserInterface(root, client)  # יצירת מופע של המחלקה UserInterface
-    app.start()  # קריאה לפעולה שפותחת את mainloop
+    try:
+        client = Client()
+        root = tk.Tk()  # יצירת מופע חלון tkinter
+        app = UserInterface(root, client)  # יצירת מופע של המחלקה UserInterface
+        app.start()  # קריאה לפעולה שפותחת את mainloop
+    except Exception as e:
+        print(e)
+    finally:
+        print()

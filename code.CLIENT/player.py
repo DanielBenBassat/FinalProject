@@ -85,4 +85,16 @@ class MusicPlayer:
             self.is_paused = False
             print("▶️ המשך ניגון.")
 
+    def shutdown(self):
+        """
+        עוצר את הניגון, משחרר קבצים, וסוגר את המיקסר.
+            """
+        if self.is_playing or self.is_paused:
+            pygame.mixer.music.stop()
+            print("⏹️ השיר נעצר.")
+        pygame.mixer.quit()
+        self.is_playing = False
+        self.is_paused = False
+        self.current_file = None
+        print("🎧 הנגן נסגר וניקוי המשאבים הושלם.")
 

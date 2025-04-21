@@ -296,3 +296,5 @@ class Client:
                 if os.path.exists(song_path):
                     self.player_log.debug("play song: " + song_path)
                     self.p.play_song(song_path)
+        elif cmd == "shutdown":
+            self.p.shutdown()
