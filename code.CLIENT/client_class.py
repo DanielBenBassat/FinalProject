@@ -26,8 +26,10 @@ class Client:
         self.q = SongsQueue()
         self.p = MusicPlayer()
 
+        self.username = ""
         self.token = ""
         self.song_id_dict = {}
+        self.liked_song = []
 
         if not os.path.isdir(LOG_DIR):
             os.makedirs(LOG_DIR)
@@ -66,6 +68,23 @@ class Client:
             self.client_log.debug(msg)
         except Exception as e:  # תפיסת כל סוגי החריגות
             self.client_log.debug(e)
+
+    def add_song_to_playlist(self, playlist_name, song_id):
+        try:
+            cmd = "atp"
+            data = [self.token, self.username, playlist_name, song_id]
+            protocol_send(self.main_socket, cmd, data)
+            self.logging_protocol("send", cmd, data)
+
+            cmd, data = protocol_receive(self.main_socket)
+            self.logging_protocol("received", cmd, data)
+            if data[0] == "Token has expired":
+                return 'Token has expired'
+            if data[0] == 'True':
+                self.liked_song.append(song_id)
+        except Exception as e:
+            print(e)
+
 
 
     def get_address(self, song_id):
@@ -250,6 +269,10 @@ class Client:
 
             cmd, data = protocol_receive(self.main_socket)
             self.logging_protocol("received", cmd, data)
+            if data[0] == "True":
+                self.username = username
+                self.token = data[1]
+                self.song_id_dict = pickle.loads(data[2])
 
         elif cmd == "2":
             #username = input("choose your username: ")
@@ -262,9 +285,13 @@ class Client:
             cmd, data = protocol_receive(self.main_socket)
             self.logging_protocol("received", cmd, data)
 
-        if data[0] == "True":
-            self.token = data[1]
-            self.song_id_dict = pickle.loads(data[2])
+            if data[0] == "True":
+                self.username = username
+                self.token = data[1]
+                self.song_id_dict = pickle.loads(data[2])
+                self.liked_song = pickle.loads(data[3])
+                print("liked song")
+                print(self.liked_song)
         return data
 
 

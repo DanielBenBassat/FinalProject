@@ -28,11 +28,16 @@ class MusicDB(DataBase):
                          "key": "TEXT"}
         self.create_table("users", users_columns)
 
-        playlists_columns = {"id" : "INTEGER PRIMARY KEY AUTOINCREMENT",
-                             "playlists_name": "TEXT NOT NULL",
-                             "user": "TEXT NOT NULL",
-                             "songs": "TEXT"}
-        foreign_key = [("user","users","id")]
+        playlists_columns = {
+            "id": "INTEGER PRIMARY KEY AUTOINCREMENT",  # מזהה ייחודי לשורת פלייליסט
+            "username": "TEXT NOT NULL",                # מקושר לשם המשתמש
+            "playlists_name": "TEXT NOT NULL",
+            "song_id": "INTEGER"                        # מקושר לשיר
+        }
+        foreign_key = [
+            ("username", "users", "username"),
+            ("song_id", "songs", "id")
+        ]
         self.create_table("playlists", playlists_columns, foreign_key)
 
 #signup
@@ -219,8 +224,61 @@ class MusicDB(DataBase):
             print(f"Database or connection error in verify_songs: {e}")
 
 
+    def add_to_playlist(self, username, playlist_name, song_id):
+        # בדיקה אם המשתמש קיים
+        user_exists = self.select("users", where_condition={"username": username})
+        if not user_exists:
+            print(f"שגיאה: המשתמש '{username}' לא קיים.")
+            return f"Error: User '{username}' does not exist."
+
+        # בדיקה אם השיר קיים
+        song_exists = self.select("songs", where_condition={"id": song_id})
+        if not song_exists:
+            print(f"שגיאה: שיר עם מזהה {song_id} לא קיים.")
+            return f"Error: Song with ID {song_id} does not exist."
+
+        # בדיקה אם השיר כבר בפלייליסט
+        song_in_playlist = self.select("playlists", where_condition={
+            "username": username,
+            "playlists_name": playlist_name,
+            "song_id": song_id
+        })
+        if song_in_playlist:
+            print(f"השיר כבר קיים בפלייליסט '{playlist_name}' של המשתמש '{username}'.")
+            return f"Error: Song {song_id} is already in playlist '{playlist_name}' for user '{username}'."
+
+        # הוספת השיר לפלייליסט
+        data = {
+            "username": username,
+            "playlists_name": playlist_name,
+            "song_id": song_id
+        }
+        self.insert("playlists", data)
+
+        print(f"✅ השיר {song_id} נוסף לפלייליסט '{playlist_name}' של המשתמש '{username}'.")
+        return True
 
 
 
+    def get_user_playlists(self, username, playlist_name):
+        # שליפת מזהי שירים מהפלייליסט
+        playlist_entries = self.select(
+            "playlists",
+            fields="song_id",
+            where_condition={
+                "username": username,
+                "playlists_name": playlist_name
+            }
+        )
+
+        # שליפה כושלת או ריק
+        if not playlist_entries:
+            return []
+
+        # הפקת מזהים מתוך התוצאה
+        song_ids = []
+        for entry in playlist_entries:
+            song_ids.append(entry[0])
+        return song_ids
 
 

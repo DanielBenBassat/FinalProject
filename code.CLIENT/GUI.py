@@ -1,6 +1,6 @@
 import tkinter as tk
 import pickle
-SCREEN_WIDTH = 600
+SCREEN_WIDTH = 700
 SCREEN_HEIGHT = 600
 from client_class import Client
 from player import MusicPlayer
@@ -108,7 +108,7 @@ class UserInterface:
             print("Error: Username or Password is empty!")
         data = client.start_client("2", username, password)
         if data[0] == "True":
-            self.songs_list = pickle.loads(data[2])
+
 
             self.show_frame("home")
 
@@ -238,7 +238,11 @@ class UserInterface:
 
             tk.Label(song_row, text=song_name, bg="white", font=("Arial", 12), width=12, anchor="w").pack(side="left", padx=5)
             tk.Label(song_row, text=artist, bg="white", font=("Arial", 12), width=12, anchor="w").pack(side="left", padx=5)
-            tk.Button(song_row, text="choose", command=lambda sid=song_id: self.play_song(sid)).pack(side="left", padx=5)
+            tk.Button(song_row, text="play", command=lambda sid=song_id: self.play_song(sid)).pack(side="left", padx=5)
+            tk.Button(song_row, text="add to queue", command=lambda sid=song_id: self.play_song(sid)).pack(side="left", padx=5)
+            tk.Button(song_row, text="like song", command=lambda sid=song_id: self.like_song(sid)).pack(side="left", padx=5)
+
+
 
 
 
@@ -250,7 +254,9 @@ class UserInterface:
         #self.playing = True
         self.client.listen_song(song_id)
 
-
+    def like_song(self, song_id):
+        print(song_id)
+        self.client.add_song_to_playlist("liked_song", song_id)
     def create_add_song_screen(self):
         frame = tk.Frame(self.root, bg="white")
 
@@ -362,7 +368,7 @@ class UserInterface:
         """
         התחלת הלולאה של tkinter.
         """
-        self.root.geometry("600x600")  # הגדרת גודל החלון
+        self.root.geometry("700x600")  # הגדרת גודל החלון
         self.root.mainloop()  # התחלת הלולאה של tkinter
 
 # יצירת החלון הראשי וה

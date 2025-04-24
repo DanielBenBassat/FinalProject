@@ -113,7 +113,9 @@ def handle_client(client_socket, client_address):
                             protocol_send(client_socket, cmd, data)
                     elif val:
                         temp = True
-                        data = ["True", token, songs_dict]
+                        liked_song = db.get_user_playlists(username, "liked_song")
+                        liked_song = pickle.dumps(liked_song)
+                        data = ["True", token, songs_dict, liked_song]
                         protocol_send(client_socket, cmd, data)
                     logging_protocol("send", cmd, data)
 
@@ -150,6 +152,15 @@ def handle_client(client_socket, client_address):
                         id = id[0][0]
                         cmd = "pad"
                         data = [str(id), ip, port]
+                        protocol_send(client_socket, cmd, data)
+                        logging_protocol("send", cmd, data)
+
+                    elif cmd == "atp": #add to playlist
+                        username = data[1]
+                        playlist_name = data[2]
+                        song_id = data[3]
+                        check = db.add_to_playlist(username, playlist_name, song_id)
+                        data = [check]
                         protocol_send(client_socket, cmd, data)
                         logging_protocol("send", cmd, data)
 
