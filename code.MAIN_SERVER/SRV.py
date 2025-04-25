@@ -164,6 +164,15 @@ def handle_client(client_socket, client_address):
                         protocol_send(client_socket, cmd, data)
                         logging_protocol("send", cmd, data)
 
+                    elif cmd == "rfp": #remove from playlist
+                        username = data[1]
+                        playlist_name = data[2]
+                        song_id = data[3]
+                        check = db.remove_from_playlist(username, playlist_name, song_id)
+                        data = [check]
+                        protocol_send(client_socket, cmd, data)
+                        logging_protocol("send", cmd, data)
+
             except Exception as e:
                 logging.error(f"[ERROR] Exception in client handling: {e}")
                 break  # יציאה אם יש שגיאה`

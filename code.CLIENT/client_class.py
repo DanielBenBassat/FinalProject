@@ -69,21 +69,36 @@ class Client:
         except Exception as e:  # תפיסת כל סוגי החריגות
             self.client_log.debug(e)
 
-    def add_song_to_playlist(self, playlist_name, song_id):
+    def song_and_playlist(self, cmd, playlist_name, song_id):
         try:
-            cmd = "atp"
-            data = [self.token, self.username, playlist_name, song_id]
-            protocol_send(self.main_socket, cmd, data)
-            self.logging_protocol("send", cmd, data)
+            if cmd == "add":
+                cmd = "atp"
+                data = [self.token, self.username, playlist_name, song_id]
+                protocol_send(self.main_socket, cmd, data)
+                self.logging_protocol("send", cmd, data)
 
-            cmd, data = protocol_receive(self.main_socket)
-            self.logging_protocol("received", cmd, data)
-            if data[0] == "Token has expired":
-                return 'Token has expired'
-            if data[0] == 'True':
-                self.liked_song.append(song_id)
+                cmd, data = protocol_receive(self.main_socket)
+                self.logging_protocol("received", cmd, data)
+                if data[0] == "Token has expired":
+                    return 'Token has expired'
+                if data[0] == 'True':
+                    self.liked_song.append(song_id)
+            elif cmd == "remove":
+                cmd = "rfp"
+                data = [self.token, self.username, playlist_name, song_id]
+                protocol_send(self.main_socket, cmd, data)
+                self.logging_protocol("send", cmd, data)
+
+                cmd, data = protocol_receive(self.main_socket)
+                self.logging_protocol("received", cmd, data)
+                if data[0] == "Token has expired":
+                    return 'Token has expired'
+                if data[0] == 'True':
+                    self.liked_song.remove(song_id)
         except Exception as e:
             print(e)
+
+
 
 
 
@@ -274,6 +289,7 @@ class Client:
                 self.token = data[1]
                 self.song_id_dict = pickle.loads(data[2])
 
+
         elif cmd == "2":
             #username = input("choose your username: ")
             #password = input("enter password")
@@ -289,7 +305,9 @@ class Client:
                 self.username = username
                 self.token = data[1]
                 self.song_id_dict = pickle.loads(data[2])
+                print(self.song_id_dict)
                 self.liked_song = pickle.loads(data[3])
+
                 print("liked song")
                 print(self.liked_song)
         return data

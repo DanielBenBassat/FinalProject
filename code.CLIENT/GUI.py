@@ -59,6 +59,8 @@ class UserInterface:
         # הצגת המסך הנבחר
         if frame_name == "home":
             self.frames["home"] = self.create_home_screen()
+        if frame_name == "profile":
+            self.frames["profile"] = self.create_profile_screen()
 
 
         self.frames[frame_name].pack(fill="both", expand=True)
@@ -240,11 +242,14 @@ class UserInterface:
             tk.Label(song_row, text=artist, bg="white", font=("Arial", 12), width=12, anchor="w").pack(side="left", padx=5)
             tk.Button(song_row, text="play", command=lambda sid=song_id: self.play_song(sid)).pack(side="left", padx=5)
             tk.Button(song_row, text="add to queue", command=lambda sid=song_id: self.play_song(sid)).pack(side="left", padx=5)
-            tk.Button(song_row, text="like song", command=lambda sid=song_id: self.like_song(sid)).pack(side="left", padx=5)
-
-
-
-
+            if song_id in self.client.liked_song:
+                like_buttom = tk.Button(song_row, text="❤")
+                like_buttom.config(command=lambda sid=song_id, button=like_buttom: self.like_song(sid, button))
+                like_buttom.pack(side="left", padx=5)
+            else:
+                like_buttom = tk.Button(song_row, text="🤍")
+                like_buttom.config(command=lambda sid=song_id, button=like_buttom: self.like_song(sid, button))
+                like_buttom.pack(side="left", padx=5)
 
         return main_frame
 
@@ -254,9 +259,16 @@ class UserInterface:
         #self.playing = True
         self.client.listen_song(song_id)
 
-    def like_song(self, song_id):
+    def like_song(self, song_id, like_buttom):
         print(song_id)
-        self.client.add_song_to_playlist("liked_song", song_id)
+        if song_id in self.client.liked_song:
+            self.client.song_and_playlist("remove", "liked_song", song_id)
+            like_buttom.config(text="🤍")
+
+        else:
+            self.client.song_and_playlist("add", "liked_song", song_id)
+            like_buttom.config(text="❤")
+
     def create_add_song_screen(self):
         frame = tk.Frame(self.root, bg="white")
 
@@ -320,11 +332,33 @@ class UserInterface:
         # כותרת "My Profile"
         tk.Label(content_frame, text="My Profile", font=("Arial", 20), bg="white").pack(anchor="w", pady=10)
 
-        # תוכן נוסף לפרופיל (לדוגמה: מידע על המשתמש, תמונה, וכו')
-        # אפשר להוסיף שדות נוספים כפי שתצטרך
+        liked_frame = tk.Frame(content_frame, bg="white")
+        liked_frame.pack(fill="x", pady=(10, 5))
+
+        tk.Label(liked_frame, text="Liked Songs", font=("Arial", 16), bg="white").pack(side="left", padx=(0, 10))
+
+        play_button = tk.Button(liked_frame, text="🎵", font=("Arial", 12), command=self.play_liked_songs)
+        play_button.pack(side="left")
+
+        for song in self.client.liked_song:
+            print(song)
+            print(type(song))
+            for song_name, (artist, song_id) in self.client.song_id_dict.items():
+                if song_id == song:
+                    song_row = tk.Frame(content_frame, bg="white")
+                    song_row.pack(fill="x", pady=5)
+
+                    tk.Label(song_row, text=song_name, bg="white", font=("Arial", 12), width=12, anchor="w").pack(side="left", padx=5)
+                    tk.Label(song_row, text=artist, bg="white", font=("Arial", 12), width=12, anchor="w").pack(side="left", padx=5)
+
+            # תוכן נוסף לפרופיל (לדוגמה: מידע על המשתמש, תמונה, וכו')
+            # אפשר להוסיף שדות נוספים כפי שתצטרך
 
         return frame
 
+    def play_liked_songs(self):
+    # כאן תוכל להפעיל את הפונקציה שתנגן את כל השירים שאהב המשתמש
+        print("נוגן פלייליסט של השירים שאהבת.")
 
     def add_navigation_buttons(self, frame, current_screen):
         # כפתור ניווט בצד המסך
@@ -376,7 +410,7 @@ if __name__ == "__main__":
     try:
         client = Client()
         root = tk.Tk()  # יצירת מופע חלון tkinter
-        app = UserInterface(root, client)  # יצירת מופע של המחלקה UserInterface
+        app = UserInterface(root, client)  # �
         app.start()  # קריאה לפעולה שפותחת את mainloop
     except Exception as e:
         print(e)
