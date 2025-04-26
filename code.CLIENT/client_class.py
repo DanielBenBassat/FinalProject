@@ -1,3 +1,4 @@
+import queue
 import socket
 import logging
 from protocol import protocol_send
@@ -25,6 +26,11 @@ class Client:
 
         self.q = SongsQueue()
         self.p = MusicPlayer()
+        self.client_to_gui_queue = queue.Queue()
+        self.gui_to_client_queue = queue.Queue()
+        player_thread = threading.Thread(target=self.main_player, daemon=True)
+        player_thread.start()
+
 
         self.username = ""
         self.token = ""
@@ -37,8 +43,7 @@ class Client:
         self.client_log = self.setup_logger("ClientLogger", LOG_FILE_CLIENT)
         self.player_log = self.setup_logger("PlayerLogger", LOG_FILE_PLAYER)
 
-        #player_thread = threading.Thread(target=self.player, daemon=True)
-        #player_thread.start()
+
 
 
     def setup_logger(self, name, log_file):
@@ -313,14 +318,42 @@ class Client:
         return data
 
 
-    def player(self, cmd):
+    def main_player(self):
+        play_thread = None
+        stop_event = None
+
+        while True:
+            cmd = self.gui_to_client_queue.get()
+
+            # אם יש תהליך ריצה - תבקש ממנו להפסיק ותמתין לו
+            if play_thread and play_thread.is_alive():
+                stop_event.set()
+                play_thread.join()
+
+            # מגדיר דגל עצירה חדש עבור הפקודה החדשה
+            stop_event = threading.Event()
+
+            # יוצר תהליכון חדש עם הדגל החדש
+            play_thread = threading.Thread(target=self.player_func, args=(cmd, stop_event), daemon=True)
+            play_thread.start()
+
+
+
+
+    def player_func(self, cmd, stop_event):
         print(cmd)
         if cmd == "play":
-            print("playing")
-            song_path = self.q.get_song()
-            if os.path.exists(song_path):
-                self.player_log.debug("play song: " + song_path)
-                self.p.play_song(song_path)
+            while not self.q.my_queue.empty() and not stop_event.is_set():
+                print("playing")
+                song_path = self.q.get_song()
+                if os.path.exists(song_path):
+                    self.player_log.debug("play song: " + song_path)
+                    self.p.play_song(song_path, stop_event)
+
+            if self.q.my_queue.empty() and not stop_event.is_set():
+                self.client_to_gui_queue.put("nothing to play")
+
+
         if cmd == "pause":
             self.p.pause_song()
             self.player_log.debug("pause song: ")
@@ -330,16 +363,23 @@ class Client:
         elif cmd == "next":
             if not self.q.my_queue.empty():
                 self.p.stop_song()
-                song_path = self.q.get_song()
-                if os.path.exists(song_path):
-                    self.player_log.debug("play song: " + song_path)
-                    self.p.play_song(song_path)
+                if not self.p.is_paused:
+
+                    song_path = self.q.get_song()
+                    print("pause?")
+                    print(self.p.is_paused)
+                    if os.path.exists(song_path):
+                        self.player_log.debug("play song: " + song_path)
+                        self.p.play_song(song_path, stop_event)
         elif cmd == "prev":
             if self.q.prev_song_path:
                 self.p.stop_song()
-                song_path = self.q.update_previous()
-                if os.path.exists(song_path):
-                    self.player_log.debug("play song: " + song_path)
-                    self.p.play_song(song_path)
+                self.q.update_previous()
+
+                if not self.p.is_paused:
+                    song_path = self.q.get_song()
+                    if os.path.exists(song_path):
+                        self.player_log.debug("play song: " + song_path)
+                        self.p.play_song(song_path, stop_event)
         elif cmd == "shutdown":
             self.p.shutdown()

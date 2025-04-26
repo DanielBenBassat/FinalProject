@@ -22,7 +22,7 @@ class MusicPlayer2:
         self.song.play()
         self.is_playing = True
         self.is_paused = False  # Ensure is_paused starts as False
-
+        sleep(1)
         while self.is_playing:
             if not pygame.mixer.get_busy():  # Check if the song is over
                 self.is_playing = False
@@ -44,9 +44,9 @@ class MusicPlayer:
         pygame.mixer.init()
         self.is_playing = False
         self.is_paused = False
-        self.current_file = None
+        self.current_file = ""
 
-    def play_song(self, file_path):
+    def play_song(self, file_path, stop_event):
         """
         מנגן את השיר מהתחלה.
         """
@@ -57,6 +57,21 @@ class MusicPlayer:
         self.is_paused = False
         print(f"🎵 מנגן: {file_path}")
 
+        sleep(1)
+        while self.is_playing:
+            if not pygame.mixer.music.get_busy() and not self.is_paused:
+                self.is_playing = False
+                self.is_paused = False
+                self.current_file = ""
+                break
+            if stop_event.is_set():
+                break
+            pygame.time.Clock().tick(30)
+
+
+        print("⏹️ השיר הסתיים.")
+
+
     def stop_song(self):
         """
         עוצר את השיר לגמרי.
@@ -64,7 +79,8 @@ class MusicPlayer:
 
         pygame.mixer.music.stop()
         self.is_playing = False
-        self.is_paused = False
+        #self.is_paused = False
+        self.current_file= ""
         print("⏹️ השיר נעצר.")
 
     def pause_song(self):
@@ -75,6 +91,7 @@ class MusicPlayer:
             pygame.mixer.music.pause()
             self.is_paused = True
             print("⏸️ השיר הושהה.")
+            print(self.is_paused)
 
     def resume_song(self):
         """

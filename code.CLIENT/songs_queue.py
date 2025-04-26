@@ -23,7 +23,7 @@ class SongsQueue:
         מנגן את השיר הבא מהתור
         """
         if self.recent_song_path != "":
-            if os.path.exists(self.old_song_path):
+            if os.path.exists(self.old_song_path) and self.old_song_path != self.recent_song_path  :
                 os.remove(self.old_song_path)
             self.old_song_path = self.prev_song_path
             self.prev_song_path = self.recent_song_path
@@ -58,21 +58,9 @@ class SongsQueue:
         self.recent_song_path = self.prev_song_path
         self.prev_song_path = self.old_song_path
         self.old_song_path = ""
-        return self.recent_song_path
+        self.put_first(self.recent_song_path)
+        #return self.recent_song_path
 
-
-    def en(self):
-        if not self.previous_songs_stack:
-            self.previous_songs_stack.append(file_path)
-        elif len(self.previous_songs_stack) == 1:
-            self.previous_songs_stack.append(file_path)
-        else:
-            old_file_path = self.previous_songs_stack.pop()
-            very_old_file_path = self.previous_songs_stack.pop()
-            if os.path.exists(very_old_file_path):
-                os.remove(very_old_file_path)
-            self.previous_songs_stack.append(old_file_path)
-            self.previous_songs_stack.append(file_path)
 
 
 

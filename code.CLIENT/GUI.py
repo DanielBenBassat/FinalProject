@@ -7,6 +7,7 @@ from player import MusicPlayer
 import os
 import threading
 import time
+import queue
 
 class UserInterface:
     def __init__(self, root, client):
@@ -24,7 +25,7 @@ class UserInterface:
         }
         self.playing = False  # מעקב מצב ניגון
         self.counter = 0
-
+        self.master = root
 
     # הצגת מסך ברירת המחדל (ברוכים הבאים)
         self.show_frame("welcome")
@@ -178,31 +179,63 @@ class UserInterface:
         tk.Button(controls_frame, text="⏭", font=("Arial", 16), command=self.next_song).pack(side="left", padx=20, pady=10)
     def prev_song(self):
         print("prev song")
-        player_thread = threading.Thread(target=self.client.player, args=("prev",), daemon=True)
-        player_thread.start()
+        #player_thread = threading.Thread(target=self.client.player, args=("prev",), daemon=True)
+        #player_thread.start()
+        self.client.gui_to_client_queue.put("prev")
+        self.counter = 0
+
     def next_song(self):
         print("next song")
-        player_thread = threading.Thread(target=self.client.player, args=("next",), daemon=True)
-        player_thread.start()
+        #player_thread = threading.Thread(target=self.client.player, args=("next",), daemon=True)
+        #player_thread.start()
+        self.client.gui_to_client_queue.put("next")
+        self.counter = 0
+
         print(self.playing)
 
     def play_pause(self):
         print(self.playing)
+        print(self.client.q.my_queue.empty())
         if not self.playing:
-            self.play_pause_button.config(text="⏹")
-            if self.counter == 0:
-                player_thread = threading.Thread(target=self.client.player, args=("play",), daemon=True)
-            else:
-                player_thread = threading.Thread(target=self.client.player, args=("resume",), daemon=True)
-            self.counter = 1 + self.counter
+            if not (self.client.q.my_queue.empty() and self.client.p.current_file == ""):
+                print(self.client.p.current_file)
+                self.play_pause_button.config(text="⏹")
+                if self.counter == 0:
+                    #player_thread = threading.Thread(target=self.client.player, args=("play",), daemon=True)
+                    self.client.gui_to_client_queue.put("play")
+                else:
+                    #player_thread = threading.Thread(target=self.client.player, args=("resume",), daemon=True)
+                    self.client.gui_to_client_queue.put("resume")
 
-        else:
+                self.counter = 1 + self.counter
+
+                self.master.after(100, self.check_result_queue)  # המשך לבדוק כל 100ms
+                #player_thread.start()
+
+                self.playing = not self.playing
+
+        elif self.playing:
             self.play_pause_button.config(text="▶")
-            player_thread = threading.Thread(target=self.client.player, args=("pause",), daemon=True)
+            #player_thread = threading.Thread(target=self.client.player, args=("pause",), daemon=True)
 
-        player_thread.start()
+            #player_thread.start()
+            self.client.gui_to_client_queue.put("pause")
 
-        self.playing = not self.playing
+
+            self.playing = not self.playing
+
+
+
+    def check_result_queue(self):
+        try:
+            result = self.client.client_to_gui_queue.get_nowait()
+            print("Result from thread:", result)
+            if result == "nothing to play":
+                self.playing = False
+                self.play_pause_button.config(text="▶")
+                self.counter = 0
+        except queue.Empty:
+            self.master.after(100, self.check_result_queue)
 
     def create_home_screen(self):
         # פריים עיקרי של התוכן והניווט
