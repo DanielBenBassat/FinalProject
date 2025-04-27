@@ -340,7 +340,7 @@ class Client:
 
 
 
-    def player_func(self, cmd, stop_event):
+    def player_func(self, cmd, stop_event=None):
         print(cmd)
         if cmd == "play":
             while not self.q.my_queue.empty() and not stop_event.is_set():
@@ -349,8 +349,14 @@ class Client:
                 if os.path.exists(song_path):
                     self.player_log.debug("play song: " + song_path)
                     self.p.play_song(song_path, stop_event)
+                    print("done in player")
 
+            print(self.q.my_queue.empty())
             if self.q.my_queue.empty() and not stop_event.is_set():
+                #self.q.old_song_path = self.q.prev_song_path
+                #self.q.prev_song_path = self.q.recent_song_path
+                print("nothing to play")
+
                 self.client_to_gui_queue.put("nothing to play")
 
 
@@ -363,23 +369,18 @@ class Client:
         elif cmd == "next":
             if not self.q.my_queue.empty():
                 self.p.stop_song()
-                if not self.p.is_paused:
+                song_path = self.q.get_song()
 
-                    song_path = self.q.get_song()
-                    print("pause?")
-                    print(self.p.is_paused)
-                    if os.path.exists(song_path):
-                        self.player_log.debug("play song: " + song_path)
-                        self.p.play_song(song_path, stop_event)
+                if os.path.exists(song_path):
+                    self.player_log.debug("play song: " + song_path)
+                    self.p.play_song(song_path, stop_event)
         elif cmd == "prev":
-            if self.q.prev_song_path:
+            if self.q.prev_song_path != "":
                 self.p.stop_song()
-                self.q.update_previous()
+                song_path = self.q.update_previous()
 
-                if not self.p.is_paused:
-                    song_path = self.q.get_song()
-                    if os.path.exists(song_path):
-                        self.player_log.debug("play song: " + song_path)
-                        self.p.play_song(song_path, stop_event)
+                if os.path.exists(song_path):
+                    self.player_log.debug("play song: " + song_path)
+                    self.p.play_song(song_path, stop_event)
         elif cmd == "shutdown":
             self.p.shutdown()

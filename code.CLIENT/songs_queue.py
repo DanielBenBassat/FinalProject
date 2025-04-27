@@ -54,12 +54,14 @@ class SongsQueue:
     def update_previous(self):
         #מחזיר את השיר הנוכחי לראש התור
         self.put_first(self.recent_song_path)
-        #הופך את השיר הקודם לעכשווי
+        #self.put_first(self.prev_song_path)
         self.recent_song_path = self.prev_song_path
         self.prev_song_path = self.old_song_path
         self.old_song_path = ""
-        self.put_first(self.recent_song_path)
-        #return self.recent_song_path
+        return  self.recent_song_path
+
+
+
 
 
 

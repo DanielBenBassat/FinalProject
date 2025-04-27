@@ -41,7 +41,7 @@ class UserInterface:
             if os.path.exists(self.client.q.prev_song_path) and self.client.q.prev_song_path != "":
                 os.remove(self.client.q.prev_song_path)
             if os.path.exists(self.client.q.recent_song_path) and self.client.q.recent_song_path != "":
-                player_thread = threading.Thread(target=self.client.player, args=("shutdown",), daemon=True)
+                player_thread = threading.Thread(target=self.client.player_func, args=("shutdown",), daemon=True)
                 player_thread.start()
                 os.remove(self.client.q.recent_song_path)
 
@@ -181,15 +181,19 @@ class UserInterface:
         print("prev song")
         #player_thread = threading.Thread(target=self.client.player, args=("prev",), daemon=True)
         #player_thread.start()
-        self.client.gui_to_client_queue.put("prev")
-        self.counter = 0
+        if self.client.q.prev_song_path != "":
+            print(self.client.q.prev_song_path)
+            self.client.gui_to_client_queue.put("prev")
+            self.playing = True
+            self.play_pause_button.config(text="⏹")
+
 
     def next_song(self):
         print("next song")
-        #player_thread = threading.Thread(target=self.client.player, args=("next",), daemon=True)
-        #player_thread.start()
-        self.client.gui_to_client_queue.put("next")
-        self.counter = 0
+        if not self.client.q.my_queue.empty():
+            self.playing = True
+            self.play_pause_button.config(text="⏹")
+            self.client.gui_to_client_queue.put("next")
 
         print(self.playing)
 

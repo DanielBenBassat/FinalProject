@@ -70,6 +70,7 @@ class MusicPlayer:
 
 
         print("⏹️ השיר הסתיים.")
+        return
 
 
     def stop_song(self):
