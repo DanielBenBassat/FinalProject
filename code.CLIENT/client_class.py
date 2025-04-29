@@ -327,6 +327,7 @@ class Client:
 
             # אם יש תהליך ריצה - תבקש ממנו להפסיק ותמתין לו
             if play_thread and play_thread.is_alive():
+                print("setting the event")
                 stop_event.set()
                 play_thread.join()
 
@@ -341,22 +342,22 @@ class Client:
 
 
     def player_func(self, cmd, stop_event=None):
-        print(cmd)
+        self.queue_logging()
+        self.player_log.debug(cmd)
         if cmd == "play":
-            while not self.q.my_queue.empty() and not stop_event.is_set():
-                print("playing")
-                song_path = self.q.get_song()
-                if os.path.exists(song_path):
-                    self.player_log.debug("play song: " + song_path)
-                    self.p.play_song(song_path, stop_event)
-                    print("done in player")
+            while not stop_event.is_set():  # לוודא שהתהליך ממשיך לעבוד עד שתתבצע עצירה
+                if not self.q.my_queue.empty():
+                    song_path = self.q.get_song()
+                    if os.path.exists(song_path):
+                        self.player_log.debug(f"playing song: {song_path}")
+                        self.p.play_song(song_path, stop_event)
+                        print("done in player")  # <-- כאן מגיעים אחרי כל שיר
+                else:
+                    print("אין שירים לנגן")
+                    break  #
 
-            print(self.q.my_queue.empty())
             if self.q.my_queue.empty() and not stop_event.is_set():
-                #self.q.old_song_path = self.q.prev_song_path
-                #self.q.prev_song_path = self.q.recent_song_path
                 print("nothing to play")
-
                 self.client_to_gui_queue.put("nothing to play")
 
 
@@ -384,3 +385,14 @@ class Client:
                     self.p.play_song(song_path, stop_event)
         elif cmd == "shutdown":
             self.p.shutdown()
+        self.queue_logging()
+        self.player_log.debug("*********************************************************************")
+
+    def queue_logging(self):
+        msg_queue = list(self.q.my_queue.queue)
+        for i in msg_queue:
+            i = str(i)
+        msg_queue = ', '.join(msg_queue)
+
+        msg = f"paused: {self.p.is_paused}::::: recent: {self.q.recent_song_path}, previous: {self.q.prev_song_path}, old: {self.q.old_song_path}, queue: {msg_queue}"
+        self.player_log.debug(msg)

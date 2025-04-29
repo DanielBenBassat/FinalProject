@@ -63,14 +63,17 @@ class MusicPlayer:
                 self.is_playing = False
                 self.is_paused = False
                 self.current_file = ""
+                print("not busy")
                 break
             if stop_event.is_set():
+                print("stop event is set")
                 break
             pygame.time.Clock().tick(30)
 
+        print(f"stop_event is {stop_event}")
+
 
         print("⏹️ השיר הסתיים.")
-        return
 
 
     def stop_song(self):
