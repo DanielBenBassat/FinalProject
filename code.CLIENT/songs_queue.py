@@ -18,21 +18,27 @@ class SongsQueue:
         """
         self.my_queue.put(file_path)
 
-    def get_song(self):
+    def get_song(self, cmd):
         """
         מנגן את השיר הבא מהתור
         """
         if self.recent_song_path != "":
-            if os.path.exists(self.old_song_path) and self.old_song_path != self.recent_song_path  :
-                os.remove(self.old_song_path)
-            self.old_song_path = self.prev_song_path
-            self.prev_song_path = self.recent_song_path
+            #if os.path.exists(self.old_song_path) and self.old_song_path != self.recent_song_path  :
+             #   os.remove(self.old_song_path)
+            if cmd == "prev":
+                print("hello from prev")
+                self.put_first(self.recent_song_path)
+                self.recent_song_path = self.prev_song_path
+                self.prev_song_path = self.old_song_path
+                self.old_song_path = ""
+                return self.recent_song_path
+            else:
+                self.old_song_path = self.prev_song_path
+                self.prev_song_path = self.recent_song_path
         while True:
             try:
                 song_path = self.my_queue.get(timeout=1)
                 self.recent_song_path = song_path
-                print("now: " + self.recent_song_path)
-                print("prev: " + self.prev_song_path)
                 return song_path
             except queue.Empty:
                 continue
@@ -52,13 +58,11 @@ class SongsQueue:
             self.my_queue.put(elem)
 
     def update_previous(self):
-        #מחזיר את השיר הנוכחי לראש התור
         self.put_first(self.recent_song_path)
-        #self.put_first(self.prev_song_path)
-        self.recent_song_path = self.prev_song_path
+        self.put_first(self.prev_song_path)
+        #self.recent_song_path = self.prev_song_path
         self.prev_song_path = self.old_song_path
         self.old_song_path = ""
-        return  self.recent_song_path
 
 
 

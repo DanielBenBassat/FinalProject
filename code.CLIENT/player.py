@@ -3,42 +3,6 @@ import queue
 import threading
 from time import sleep
 
-
-class MusicPlayer2:
-    def __init__(self):
-        pygame.mixer.init()  # אתחול המיקסר של pygame
-        self.is_playing = False
-        self.is_paused = False
-        self.song = None
-        self.queue = queue.Queue()  # לנהל את ההודעות בין הטרדים
-        self.play_thread = None  # ניהול ה-Thread של הניגון
-
-
-    def play_song(self, file_path):
-        """
-        מקבל קובץ MP3 ומנגן אותו
-        """
-        self.song = pygame.mixer.Sound(file_path)
-        self.song.play()
-        self.is_playing = True
-        self.is_paused = False  # Ensure is_paused starts as False
-        sleep(1)
-        while self.is_playing:
-            if not pygame.mixer.get_busy():  # Check if the song is over
-                self.is_playing = False
-                break
-
-            sleep(0.1)
-    def stop_song(self):
-        if self.is_playing and self.song:
-            self.song.stop()
-            print("stop song from player class")
-            self.is_playing = False
-            self.song = None
-
-import pygame
-
-
 class MusicPlayer:
     def __init__(self):
         pygame.mixer.init()
@@ -46,7 +10,7 @@ class MusicPlayer:
         self.is_paused = False
         self.current_file = ""
 
-    def play_song(self, file_path, stop_event):
+    def play_song(self, file_path,cmd_queue):
         """
         מנגן את השיר מהתחלה.
         """
@@ -64,13 +28,15 @@ class MusicPlayer:
                 self.is_paused = False
                 self.current_file = ""
                 print("not busy")
+                pygame.mixer.music.unload()  # יש רק בגרסאות מסוימות של pygame
                 break
-            if stop_event.is_set():
-                print("stop event is set")
+            if not cmd_queue.empty():
+                print("new cmd")
+                pygame.mixer.music.unload()  # יש רק בגרסאות מסוימות של pygame
+
                 break
             pygame.time.Clock().tick(30)
 
-        print(f"stop_event is {stop_event}")
 
 
         print("⏹️ השיר הסתיים.")
@@ -83,7 +49,7 @@ class MusicPlayer:
 
         pygame.mixer.music.stop()
         self.is_playing = False
-        #self.is_paused = False
+        self.is_paused = False
         self.current_file= ""
         print("⏹️ השיר נעצר.")
 

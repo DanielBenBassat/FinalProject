@@ -41,8 +41,7 @@ class UserInterface:
             if os.path.exists(self.client.q.prev_song_path) and self.client.q.prev_song_path != "":
                 os.remove(self.client.q.prev_song_path)
             if os.path.exists(self.client.q.recent_song_path) and self.client.q.recent_song_path != "":
-                player_thread = threading.Thread(target=self.client.player_func, args=("shutdown",), daemon=True)
-                player_thread.start()
+                self.client.gui_to_client_queue.put("shutdown")
                 os.remove(self.client.q.recent_song_path)
 
             self.client.main_socket.close()
@@ -205,26 +204,19 @@ class UserInterface:
                 print(self.client.p.current_file)
                 self.play_pause_button.config(text="⏹")
                 if self.counter == 0:
-                    #player_thread = threading.Thread(target=self.client.player, args=("play",), daemon=True)
                     self.client.gui_to_client_queue.put("play")
                 else:
-                    #player_thread = threading.Thread(target=self.client.player, args=("resume",), daemon=True)
                     self.client.gui_to_client_queue.put("resume")
 
                 self.counter = 1 + self.counter
 
                 self.master.after(100, self.check_result_queue)  # המשך לבדוק כל 100ms
-                #player_thread.start()
 
                 self.playing = not self.playing
 
         elif self.playing:
             self.play_pause_button.config(text="▶")
-            #player_thread = threading.Thread(target=self.client.player, args=("pause",), daemon=True)
-
-            #player_thread.start()
             self.client.gui_to_client_queue.put("pause")
-
 
             self.playing = not self.playing
 

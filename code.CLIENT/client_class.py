@@ -28,9 +28,9 @@ class Client:
         self.p = MusicPlayer()
         self.client_to_gui_queue = queue.Queue()
         self.gui_to_client_queue = queue.Queue()
-        player_thread = threading.Thread(target=self.main_player, daemon=True)
-        player_thread.start()
 
+        player_thread = threading.Thread(target=self.player_func, daemon=True)
+        player_thread.start()
 
         self.username = ""
         self.token = ""
@@ -318,75 +318,56 @@ class Client:
         return data
 
 
-    def main_player(self):
-        play_thread = None
-        stop_event = None
 
+
+    def player_func(self):
         while True:
             cmd = self.gui_to_client_queue.get()
+            self.queue_logging()
+            self.player_log.debug(cmd)
+            play = False
+            if cmd == "play":
+                play = True
 
-            # אם יש תהליך ריצה - תבקש ממנו להפסיק ותמתין לו
-            if play_thread and play_thread.is_alive():
-                print("setting the event")
-                stop_event.set()
-                play_thread.join()
-
-            # מגדיר דגל עצירה חדש עבור הפקודה החדשה
-            stop_event = threading.Event()
-
-            # יוצר תהליכון חדש עם הדגל החדש
-            play_thread = threading.Thread(target=self.player_func, args=(cmd, stop_event), daemon=True)
-            play_thread.start()
-
-
-
-
-    def player_func(self, cmd, stop_event=None):
-        self.queue_logging()
-        self.player_log.debug(cmd)
-        if cmd == "play":
-            while not stop_event.is_set():  # לוודא שהתהליך ממשיך לעבוד עד שתתבצע עצירה
+            if cmd == "pause":
+                self.p.pause_song()
+                self.player_log.debug("pause song: ")
+            elif cmd == "resume":
+                self.p.resume_song()
+                self.player_log.debug("resume song: ")
+            elif cmd == "next":
                 if not self.q.my_queue.empty():
-                    song_path = self.q.get_song()
-                    if os.path.exists(song_path):
-                        self.player_log.debug(f"playing song: {song_path}")
-                        self.p.play_song(song_path, stop_event)
-                        print("done in player")  # <-- כאן מגיעים אחרי כל שיר
-                else:
-                    print("אין שירים לנגן")
-                    break  #
+                    self.p.stop_song()
+                    play = True
 
-            if self.q.my_queue.empty() and not stop_event.is_set():
-                print("nothing to play")
+            elif cmd == "prev":
+                if self.q.prev_song_path != "":
+                    self.p.stop_song()
+                    play = True
+
+            elif cmd == "shutdown":
+                self.p.shutdown()
+
+            if play:
+                print(cmd)
+                self.play_loop(cmd)
+
+            self.queue_logging()
+            self.player_log.debug("*********************************************************************")
+
+    def play_loop(self, cmd):
+        while self.gui_to_client_queue.empty():
+            if not self.q.my_queue.empty() or (cmd == "prev" and self.q.prev_song_path != ""):
+                print("play loop2")
+                song_path = self.q.get_song(cmd)
+                if os.path.exists(song_path):
+                    self.p.play_song(song_path, self.gui_to_client_queue) # שהתור ריק השיר מתנגן ושיש בו משהו הפעולה מופסקת
+                    cmd == "" # after the first time, doing the loop regulary
+            else:
                 self.client_to_gui_queue.put("nothing to play")
+                break
 
 
-        if cmd == "pause":
-            self.p.pause_song()
-            self.player_log.debug("pause song: ")
-        elif cmd == "resume":
-            self.p.resume_song()
-            self.player_log.debug("resume song: ")
-        elif cmd == "next":
-            if not self.q.my_queue.empty():
-                self.p.stop_song()
-                song_path = self.q.get_song()
-
-                if os.path.exists(song_path):
-                    self.player_log.debug("play song: " + song_path)
-                    self.p.play_song(song_path, stop_event)
-        elif cmd == "prev":
-            if self.q.prev_song_path != "":
-                self.p.stop_song()
-                song_path = self.q.update_previous()
-
-                if os.path.exists(song_path):
-                    self.player_log.debug("play song: " + song_path)
-                    self.p.play_song(song_path, stop_event)
-        elif cmd == "shutdown":
-            self.p.shutdown()
-        self.queue_logging()
-        self.player_log.debug("*********************************************************************")
 
     def queue_logging(self):
         msg_queue = list(self.q.my_queue.queue)
