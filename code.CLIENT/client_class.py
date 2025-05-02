@@ -170,8 +170,13 @@ class Client:
 
     def listen_song(self, song_id):
 
-        #if song in self.song_id_dict:
-        #song_id = self.song_id_dict[song][1]
+        file_path = os.path.join(str(song_id) + '.mp3')
+
+        if os.path.exists(file_path):
+            self.q.add_to_queue(file_path)
+            self.client_log.debug(file_path + " was added to queue")
+            return 'good'
+
         media_server_address = self.get_address(song_id)
         if media_server_address == 'Token has expired':
             return 'Token has expired'
@@ -184,7 +189,11 @@ class Client:
             self.q.add_to_queue(file_name)
             self.client_log.debug(file_name + " was added to queue")
             return 'good'
-
+    def play_playlist(self, playlist):
+        self.q.clear_queue()
+        self.p.stop_song()
+        for song in playlist:
+            self.listen_song(song)
     def add_song(self, song_name, artist, file_path):
         #song_name = input("Enter song's name: ")
         #artist = input("Enter artist's name: ")
@@ -352,18 +361,21 @@ class Client:
                 print(cmd)
                 self.play_loop(cmd)
 
-            self.queue_logging()
+
             self.player_log.debug("*********************************************************************")
 
     def play_loop(self, cmd):
         while self.gui_to_client_queue.empty():
             if not self.q.my_queue.empty() or (cmd == "prev" and self.q.prev_song_path != ""):
-                print("play loop2")
                 song_path = self.q.get_song(cmd)
+                self.queue_logging()
                 if os.path.exists(song_path):
                     self.p.play_song(song_path, self.gui_to_client_queue) # שהתור ריק השיר מתנגן ושיש בו משהו הפעולה מופסקת
-                    cmd == "" # after the first time, doing the loop regulary
+                else:
+                    self.player_log.debug("song not found")
+                cmd == "play" # after the first time, doing the loop regulary
             else:
+                self.player_log.debug("nothing to play")
                 self.client_to_gui_queue.put("nothing to play")
                 break
 

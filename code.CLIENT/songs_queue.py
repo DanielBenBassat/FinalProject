@@ -23,8 +23,7 @@ class SongsQueue:
         מנגן את השיר הבא מהתור
         """
         if self.recent_song_path != "":
-            #if os.path.exists(self.old_song_path) and self.old_song_path != self.recent_song_path  :
-             #   os.remove(self.old_song_path)
+
             if cmd == "prev":
                 print("hello from prev")
                 self.put_first(self.recent_song_path)
@@ -33,8 +32,11 @@ class SongsQueue:
                 self.old_song_path = ""
                 return self.recent_song_path
             else:
+                if os.path.exists(self.old_song_path) and self.old_song_path != self.recent_song_path  :
+                    os.remove(self.old_song_path)
                 self.old_song_path = self.prev_song_path
                 self.prev_song_path = self.recent_song_path
+
         while True:
             try:
                 song_path = self.my_queue.get(timeout=1)
@@ -64,6 +66,13 @@ class SongsQueue:
         self.prev_song_path = self.old_song_path
         self.old_song_path = ""
 
+
+    def clear_queue(self):
+        self.recent_song_path = ""
+        self.prev_song_path = ""
+        self.old_song_path = ""
+        while not self.my_queue.empty():
+            temp = self.my_queue.get()
 
 
 

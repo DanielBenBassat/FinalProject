@@ -36,12 +36,21 @@ class UserInterface:
 
     def closing(self):
         try:
+            self.client.gui_to_client_queue.put("shutdown")
+            time.sleep(0.1)
+            while not self.client.q.my_queue.empty():
+                file_path = self.client.q.my_queue.get()
+                if os.path.exists(file_path):
+                    os.remove(file_path)
+
             if os.path.exists(self.client.q.old_song_path) and self.client.q.old_song_path != "":
                 os.remove(self.client.q.old_song_path)
             if os.path.exists(self.client.q.prev_song_path) and self.client.q.prev_song_path != "":
                 os.remove(self.client.q.prev_song_path)
+
             if os.path.exists(self.client.q.recent_song_path) and self.client.q.recent_song_path != "":
-                self.client.gui_to_client_queue.put("shutdown")
+
+                time.sleep(0.1)
                 os.remove(self.client.q.recent_song_path)
 
             self.client.main_socket.close()
@@ -249,7 +258,15 @@ class UserInterface:
         content_frame.pack(side="left", fill="both", expand=True, padx=20, pady=20)
 
         # כותרת עליונה
-        tk.Label(content_frame, text="Home", font=("Arial", 20), bg="white").pack(anchor="w", pady=10)
+        tk.Label(content_frame, text=f"Home - Hello {self.client.username}", font=("Arial", 20), bg="white").pack(anchor="w", pady=10)
+        # תווית וכפתור לשירים שאהבתי
+        liked_frame = tk.Frame(content_frame, bg="white")
+        liked_frame.pack(anchor="w", pady=(10, 10))
+
+        tk.Label(liked_frame, text="Liked Songs", font=("Arial", 14), bg="white").pack(side="left", padx=(0, 10))
+
+        play_button = tk.Button(liked_frame, text="🎵", font=("Arial", 12), command=lambda: self.play_playlist(self.client.liked_song))
+        play_button.pack(side="left")
 
         # שורת כותרות
         header_row = tk.Frame(content_frame, bg="white")
@@ -297,6 +314,9 @@ class UserInterface:
         else:
             self.client.song_and_playlist("add", "liked_song", song_id)
             like_buttom.config(text="❤")
+    def play_playlist(self, playlist):
+        # כאן תוכל להפעיל את הפונקציה שתנגן את כל השירים שאהב המשתמש
+        self.client.play_playlist(playlist)
 
     def create_add_song_screen(self):
         frame = tk.Frame(self.root, bg="white")
@@ -366,8 +386,8 @@ class UserInterface:
 
         tk.Label(liked_frame, text="Liked Songs", font=("Arial", 16), bg="white").pack(side="left", padx=(0, 10))
 
-        play_button = tk.Button(liked_frame, text="🎵", font=("Arial", 12), command=self.play_liked_songs)
-        play_button.pack(side="left")
+        #play_button = tk.Button(liked_frame, text="🎵", font=("Arial", 12), command=self.play_liked_songs)
+        #play_button.pack(side="left")
 
         for song in self.client.liked_song:
             print(song)
@@ -385,9 +405,7 @@ class UserInterface:
 
         return frame
 
-    def play_liked_songs(self):
-    # כאן תוכל להפעיל את הפונקציה שתנגן את כל השירים שאהב המשתמש
-        print("נוגן פלייליסט של השירים שאהבת.")
+
 
     def add_navigation_buttons(self, frame, current_screen):
         # כפתור ניווט בצד המסך
