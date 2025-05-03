@@ -78,7 +78,7 @@ def handle_client(client_socket, client_address):
         valid = verify_token(token)
         if not valid.get("valid"):
             print("token is not valid")
-            protocol_send(client_socket, cmd, ["error", "token is not valid"])
+            protocol_send(client_socket, cmd, ["False", "token is not valid"])
 
         elif valid.get("valid"):
             print("token is valid")
@@ -90,10 +90,10 @@ def handle_client(client_socket, client_address):
                 file = data[2]
                 is_worked = add_song(file, name)
                 if is_worked:
-                    val = "good"
+                    val = ["True", "post song succeeded"]
                 else:
-                    val = "error"
-                protocol_send(client_socket, "pst", [val])
+                    val = ["False", "post song failed"]
+                protocol_send(client_socket, "pst", val)
 
     except socket.error as err:
         print('Socket error on client connection: ' + str(err))

@@ -91,13 +91,16 @@ def handle_client(client_socket, client_address):
                 if cmd == "sig":
                     username = data[0]
                     password = data[1]
-                    db.add_user(username, password)
+                    check = db.add_user(username, password)
 
                     cmd = "sig"
-                    data = ["True", token, songs_dict]
+                    if check:
+                        data = ["True", token, songs_dict]
+                        temp = True
+                    else:
+                        data = ["False", "existing"]
                     protocol_send(client_socket, cmd, data)
                     logging_protocol("send", cmd, data)
-                    temp = True
 
                 elif cmd == "log":
                     username = data[0]
@@ -127,8 +130,7 @@ def handle_client(client_socket, client_address):
                 valid = verify_token(token)
                 if not valid.get("valid"):
                     error = valid.get("error")
-                    #print(error)
-                    data = [error]
+                    data = ["false", error]
                     protocol_send(client_socket, cmd, data)
                     logging_protocol("send", cmd, data)
                     break
@@ -148,10 +150,8 @@ def handle_client(client_socket, client_address):
                     elif cmd == "pad":  # [name, artist]
                         name = data[1]
                         artist = data[2]
-                        id, ip, port = db.add_song(name, artist)
-                        id = id[0][0]
+                        data = db.add_song(name, artist)
                         cmd = "pad"
-                        data = [str(id), ip, port]
                         protocol_send(client_socket, cmd, data)
                         logging_protocol("send", cmd, data)
 

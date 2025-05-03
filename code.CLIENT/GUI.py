@@ -8,6 +8,8 @@ import os
 import threading
 import time
 import queue
+from tkinter import messagebox
+
 
 class UserInterface:
     def __init__(self, root, client):
@@ -30,6 +32,10 @@ class UserInterface:
     # הצגת מסך ברירת המחדל (ברוכים הבאים)
         self.show_frame("welcome")
         self.root.protocol("WM_DELETE_WINDOW", self.closing)  # <- כאן זה קורה
+
+
+
+
 
 
 
@@ -59,6 +65,17 @@ class UserInterface:
         finally:
             print("good bye")
             self.root.destroy()  # <- שורת הקסם שחסרה
+
+    def reset(self):
+        """ פעולה שתאפס את כל הדברים בלקוח ובגרפיקה """
+        # יצירת מופע חדש של הלקוח, אשר מאתחל את כל המאפיינים מחדש
+        self.closing()
+        client = Client()
+        root = tk.Tk()  # יצירת מופע חלון tkinter
+        app = UserInterface(root, client)  # �
+        app.start()  # קריאה לפעולה שפותחת את mainloop
+
+
 
 
     def show_frame(self, frame_name):
@@ -104,6 +121,7 @@ class UserInterface:
 
         # כפתור להתחברות
         tk.Button(frame, text="Log In", command=lambda: self.login_action(username_var, password_var)).pack(pady=10)
+        tk.Button(frame, text="Back", command=lambda: self.show_frame("welcome")).pack(pady=5)
 
         return frame
 
@@ -119,9 +137,10 @@ class UserInterface:
             print("Error: Username or Password is empty!")
         data = client.start_client("2", username, password)
         if data[0] == "True":
-
-
             self.show_frame("home")
+        if data[0] == "False":
+            messagebox.showerror("error", "details are wrong")
+
 
 
     def create_signup_screen(self):
@@ -145,6 +164,7 @@ class UserInterface:
 
         # כפתור הרשמה
         tk.Button(frame, text="Sign Up", command=lambda: self.signup_action(username_var, password_var, confirm_password_var)).pack(pady=10)
+        tk.Button(frame, text="Back", command=lambda: self.show_frame("welcome")).pack(pady=5)
 
         return frame
 
@@ -163,10 +183,11 @@ class UserInterface:
             # כאן אפשר להוסיף קוד להירשם למערכת ולעבור למסך הבא
             data = client.start_client("1", username, password)
             if data[0] == "True":
-                #self.songs_list = pickle.loads(data[2])
                 self.show_frame("home")
+            elif data[0] == "False":
+                messagebox.showerror("error", "username already exist")
         else:
-            print("Passwords do not match!")
+            messagebox.showerror("error", "Passwords do not match!")
             # אפשר להוסיף הודעת שגיאה למשתמש במקרה של חוסר התאמה
     def create_music_player_bar(self, main_frame):
         music_player = tk.Frame(main_frame, bg="blue", height=60)
@@ -187,8 +208,6 @@ class UserInterface:
         tk.Button(controls_frame, text="⏭", font=("Arial", 16), command=self.next_song).pack(side="left", padx=20, pady=10)
     def prev_song(self):
         print("prev song")
-        #player_thread = threading.Thread(target=self.client.player, args=("prev",), daemon=True)
-        #player_thread.start()
         if self.client.q.prev_song_path != "":
             print(self.client.q.prev_song_path)
             self.client.gui_to_client_queue.put("prev")
@@ -363,8 +382,12 @@ class UserInterface:
         print("Song File Path:", song_path)
 
         msg = client.add_song(song_name, artist_name, song_path)
-        if msg == 'Token has expired' or msg == "Invalid token":
-            self.show_frame("home")
+        print(msg)
+        if msg[0] == "False":
+            messagebox.showerror("error", msg[1])
+        elif msg[0] == "True":
+            messagebox.showinfo("good", msg[1])
+
 
 
 
@@ -427,7 +450,7 @@ class UserInterface:
             tk.Button(navigation_frame, text="Go to Home", command=lambda: self.show_frame("home")).pack(pady=10)
             tk.Button(navigation_frame, text="Go to Add Song", command=lambda: self.show_frame("add_song")).pack(pady=10)
 
-
+        #tk.Button(navigation_frame, text="Logout", command=lambda: self.reset()).pack(pady=10)  # כפתור התנתקות
 
 
 
@@ -452,6 +475,7 @@ class UserInterface:
         self.root.geometry("700x600")  # הגדרת גודל החלון
         self.root.mainloop()  # התחלת הלולאה של tkinter
 
+
 # יצירת החלון הראשי וה
 if __name__ == "__main__":
     try:
@@ -463,3 +487,4 @@ if __name__ == "__main__":
         print(e)
     finally:
         print()
+

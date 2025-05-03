@@ -42,8 +42,16 @@ class MusicDB(DataBase):
 
 #signup
     def add_user(self, username, password):
-        data = {"username": username, "password": password}
-        self.insert("users", data)
+    # בדיקה אם המשתמש כבר קיים לפי השם
+        existing = self.select("users", where_condition={"username": username})
+        if existing:
+            print("שם המשתמש כבר קיים")
+            return False
+
+        # אם לא קיים, מוסיפים
+        self.insert("users", {"username": username, "password": password})
+        return True
+
 
     #login
     def verified_user(self, username, password):
@@ -78,17 +86,27 @@ class MusicDB(DataBase):
 
     #post song
     def add_song(self, song_name, artist):
+    # בדיקה אם השיר כבר קיים במסד הנתונים
+        existing = self.select("songs", "*", {"name": song_name, "artist": artist})
+        if existing:
+            print("שיר כבר קיים:", existing)
+            return ["False", "existing"]  # או שתחזיר את ה-ID הקיים אם אתה רוצה להשתמש בו
+
+        # המשך רגיל אם השיר לא קיים
         data = {"name": song_name, "artist": artist}
         address = self.find_address()
         ip = address[0]
         port = address[1]
-        data["IP1"] = address[0]
-        data["port1"] = address[1]
+        data["IP1"] = ip
+        data["port1"] = port
         data["setting1"] = "pending"
         self.insert("songs", data)
+
         song_id = self.select("songs", "id", {"name": song_name, "artist": artist})
         print(song_id)
-        return song_id, ip, port
+        song_id = str(song_id[0][0])
+        return ["True", song_id, ip, port]
+
 
 
     #get

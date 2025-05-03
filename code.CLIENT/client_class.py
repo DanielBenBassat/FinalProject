@@ -110,7 +110,6 @@ class Client:
     def get_address(self, song_id):
         """
         sends the main server a song id and receive an address of the media server that has the song
-        :param client_socket: socket
         :param song_id: int
         :return: address of the media server that has the required song
         """
@@ -195,32 +194,21 @@ class Client:
         for song in playlist:
             self.listen_song(song)
     def add_song(self, song_name, artist, file_path):
-        #song_name = input("Enter song's name: ")
-        #artist = input("Enter artist's name: ")
-        #artist = "daniel"
-        #file_path = input("Enter file path: ")
-        #song = input("Enter file path: ")
-        #file_path = fr"C:\newSongs\{song}.mp3"
         if os.path.isfile(file_path):
-            data =  self.get_address_new_song(song_name, artist)
-            if data[0] == "Invalid token" or data[0] == "Token has expired" or data[0] == "error":
-                return data[0]
+            data = self.get_address_new_song(song_name, artist)
+            if data[0] == "False":
+                return data
             else:
                 song_id = data[0]
                 media_server_address = data[1]
                 val = self.post_song(file_path, song_id, media_server_address)
-                if val == "good":
-                    return "post song succeeded"
-                elif val == "Invalid token":
-                    return "Invalid token"
-                else:
-                    "post song has failed"
+                return val
 
-
+        else:
+            return ["False", "file does not exist"]
     def get_address_new_song(self, song_name, artist):
         """
         gets an id and a server address for adding new song
-        :param client_socket: socket
         :param song_name: str
         :param artist: str
         :return:
@@ -235,9 +223,9 @@ class Client:
         if data[0] == "Invalid token" or data[0] == "Token has expired" or data[0] == "error":
             return data
         else:
-            song_id = int(data[0])
-            ip = data[1]
-            port = int(data[2])
+            song_id = int(data[1])
+            ip = data[2]
+            port = int(data[3])
             address = (ip, port)
             return [song_id, address]
 
@@ -267,35 +255,23 @@ class Client:
             cmd, data = protocol_receive(media_socket)
             self.logging_protocol("received", cmd, data)
             if data[0] == "Invalid token":
-                val = "Invalid token"
+                val = data
             else:
-                val = data[0]
+                val = data
                 media_socket.close()
-                val == "good"
 
         except socket.error as e:
             self.client_log.debug(f"Connection failed: {e}")
+            val = ["False", "error connection"]
         finally:
             return val
 
-
     def start_client(self, cmd, username, password): # cmd =1 sign up cmd =2 login
-        #temp = False
-        #while not temp:
-            #   cmd = 0
-          #  while cmd != "1" and cmd != "2":
-           #     cmd = input("enter 1 to sign up or 2 to log in: ")
-
         if cmd == "1":
-            #username = input("choose your username: ")
-            #password = input("enter password")
-            #password2 = input("verify password")
-            #if password == password2 and password is not None:
             cmd = "sig"
             data = [username, password]
             protocol_send(self.main_socket, cmd, data)
             self.logging_protocol("send", cmd, data)
-
             cmd, data = protocol_receive(self.main_socket)
             self.logging_protocol("received", cmd, data)
             if data[0] == "True":
@@ -303,18 +279,13 @@ class Client:
                 self.token = data[1]
                 self.song_id_dict = pickle.loads(data[2])
 
-
         elif cmd == "2":
-            #username = input("choose your username: ")
-            #password = input("enter password")
             cmd = "log"
             data = [username, password]
             protocol_send(self.main_socket, cmd, data)
             self.logging_protocol("send", cmd, data)
-
             cmd, data = protocol_receive(self.main_socket)
             self.logging_protocol("received", cmd, data)
-
             if data[0] == "True":
                 self.username = username
                 self.token = data[1]
