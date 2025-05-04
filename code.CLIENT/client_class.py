@@ -18,9 +18,9 @@ LOG_FORMAT = '%(levelname)s | %(asctime)s | %(name)s | %(message)s'
 
 
 class Client:
-    def __init__(self):
+    def __init__(self, ip, port):
 
-        self.MAIN_SERVER_ADDR = ("127.0.0.1", 5555)
+        self.MAIN_SERVER_ADDR = (ip, port)
         self.main_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         self.main_socket.connect(self.MAIN_SERVER_ADDR)
 
@@ -105,6 +105,12 @@ class Client:
 
 
 
+    def exit(self):
+        cmd = "ext"
+        data = [self.token]
+        protocol_send(self.main_socket, cmd, data)
+        self.main_socket.close()
+        self.logging_protocol("send", cmd, data)
 
 
     def get_address(self, song_id):

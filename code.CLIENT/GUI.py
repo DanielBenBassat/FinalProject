@@ -9,13 +9,14 @@ import threading
 import time
 import queue
 from tkinter import messagebox
-
+import hashlib
+IP = "127.0.0.1"
+PORT = 5555
 
 class UserInterface:
     def __init__(self, root, client):
         self.root = root
         self.client = client
-       #self.songs_list = {} #
         self.frames = {
             "welcome": self.create_welcome_screen(),
             "login": self.create_login_screen(),
@@ -43,6 +44,7 @@ class UserInterface:
     def closing(self):
         try:
             self.client.gui_to_client_queue.put("shutdown")
+            self.client.exit()
             time.sleep(0.1)
             while not self.client.q.my_queue.empty():
                 file_path = self.client.q.my_queue.get()
@@ -53,13 +55,11 @@ class UserInterface:
                 os.remove(self.client.q.old_song_path)
             if os.path.exists(self.client.q.prev_song_path) and self.client.q.prev_song_path != "":
                 os.remove(self.client.q.prev_song_path)
-
             if os.path.exists(self.client.q.recent_song_path) and self.client.q.recent_song_path != "":
-
                 time.sleep(0.1)
                 os.remove(self.client.q.recent_song_path)
 
-            self.client.main_socket.close()
+
         except Exception as e:
             print(e)
         finally:
@@ -69,11 +69,24 @@ class UserInterface:
     def reset(self):
         """ פעולה שתאפס את כל הדברים בלקוח ובגרפיקה """
         # יצירת מופע חדש של הלקוח, אשר מאתחל את כל המאפיינים מחדש
-        self.closing()
-        client = Client()
-        root = tk.Tk()  # יצירת מופע חלון tkinter
-        app = UserInterface(root, client)  # �
-        app.start()  # קריאה לפעולה שפותחת את mainloop
+        self.client.gui_to_client_queue.put("shutdown")
+        self.client.exit()
+        time.sleep(0.1)
+        while not self.client.q.my_queue.empty():
+            file_path = self.client.q.my_queue.get()
+            if os.path.exists(file_path):
+                os.remove(file_path)
+
+        if os.path.exists(self.client.q.old_song_path) and self.client.q.old_song_path != "":
+            os.remove(self.client.q.old_song_path)
+        if os.path.exists(self.client.q.prev_song_path) and self.client.q.prev_song_path != "":
+            os.remove(self.client.q.prev_song_path)
+        if os.path.exists(self.client.q.recent_song_path) and self.client.q.recent_song_path != "":
+            time.sleep(0.1)
+            os.remove(self.client.q.recent_song_path)
+        self.client.main_socket.close()
+        self.client = Client()
+        self.show_frame("welcome")
 
 
 
@@ -87,6 +100,8 @@ class UserInterface:
             self.frames["home"] = self.create_home_screen()
         if frame_name == "profile":
             self.frames["profile"] = self.create_profile_screen()
+        if frame_name == "login":
+            self.frames["login"] = self.create_login_screen()
 
 
         self.frames[frame_name].pack(fill="both", expand=True)
@@ -109,6 +124,7 @@ class UserInterface:
         tk.Label(frame, text="Login", font=("Arial", 20)).pack(pady=20)
 
         # יצירת משתני טקסט לשם משתמש וסיסמה
+
         username_var = tk.StringVar()
         password_var = tk.StringVar()
 
@@ -135,7 +151,9 @@ class UserInterface:
         # בדוק כאן אם הם ריקים
         if not username or not password:
             print("Error: Username or Password is empty!")
-        data = client.start_client("2", username, password)
+        hashed_password = hashlib.sha256(password.encode()).hexdigest()
+
+        data = client.start_client("2", username, hashed_password)
         if data[0] == "True":
             self.show_frame("home")
         if data[0] == "False":
@@ -180,8 +198,10 @@ class UserInterface:
         # בדיקה אם הסיסמה ואישור הסיסמה תואמים
         if password == confirm_password:
             print("Passwords match!")
+            hashed_password = hashlib.sha256(password.encode()).hexdigest()
+
             # כאן אפשר להוסיף קוד להירשם למערכת ולעבור למסך הבא
-            data = client.start_client("1", username, password)
+            data = client.start_client("1", username, hashed_password)
             if data[0] == "True":
                 self.show_frame("home")
             elif data[0] == "False":
@@ -306,7 +326,7 @@ class UserInterface:
             tk.Label(song_row, text=song_name, bg="white", font=("Arial", 12), width=12, anchor="w").pack(side="left", padx=5)
             tk.Label(song_row, text=artist, bg="white", font=("Arial", 12), width=12, anchor="w").pack(side="left", padx=5)
             tk.Button(song_row, text="play", command=lambda sid=song_id: self.play_song(sid)).pack(side="left", padx=5)
-            tk.Button(song_row, text="add to queue", command=lambda sid=song_id: self.play_song(sid)).pack(side="left", padx=5)
+            tk.Button(song_row, text="add to queue", command=lambda sid=song_id: self.add_song_to_queue(sid)).pack(side="left", padx=5)
             if song_id in self.client.liked_song:
                 like_buttom = tk.Button(song_row, text="❤")
                 like_buttom.config(command=lambda sid=song_id, button=like_buttom: self.like_song(sid, button))
@@ -318,11 +338,20 @@ class UserInterface:
 
         return main_frame
 
-
-    def play_song(self, song_id):
+    def add_song_to_queue(self, song_id):
         print(song_id)
         #self.playing = True
         self.client.listen_song(song_id)
+
+    def play_song(self, song_id):
+        print(song_id)
+        self.client.q.clear_queue()
+        self.client.listen_song(song_id)
+        if self.playing:
+            self.playing = False
+            self.counter = 0
+
+        self.play_pause()
 
     def like_song(self, song_id, like_buttom):
         print(song_id)
@@ -479,7 +508,7 @@ class UserInterface:
 # יצירת החלון הראשי וה
 if __name__ == "__main__":
     try:
-        client = Client()
+        client = Client(IP, PORT)
         root = tk.Tk()  # יצירת מופע חלון tkinter
         app = UserInterface(root, client)  # �
         app.start()  # קריאה לפעולה שפותחת את mainloop

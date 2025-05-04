@@ -82,6 +82,7 @@ def handle_client(client_socket, client_address):
         songs_dict = pickle.dumps(songs_dict)
         token = generate_token()
         temp = False
+        temp2 = True
         while not temp:
             msg = protocol_receive(client_socket)
             if msg is not None:
@@ -122,10 +123,18 @@ def handle_client(client_socket, client_address):
                         protocol_send(client_socket, cmd, data)
                     logging_protocol("send", cmd, data)
 
-        while True:
+                elif cmd == "ext" or cmd == "error":
+                    print("EXT command received, breaking loop.")
+                    temp = True
+                    temp2 =False
+
+        while temp2:
             try:
                 cmd, data = protocol_receive(client_socket)
+
                 logging_protocol("receive", cmd, data)
+                if cmd == "error":
+                    break
                 token = data[0]
                 valid = verify_token(token)
                 if not valid.get("valid"):
@@ -173,6 +182,10 @@ def handle_client(client_socket, client_address):
                         protocol_send(client_socket, cmd, data)
                         logging_protocol("send", cmd, data)
 
+                    elif cmd == "ext" or cmd == "error":
+                        print("EXT command received, breaking loop.")
+                        break
+
             except Exception as e:
                 logging.error(f"[ERROR] Exception in client handling: {e}")
                 break  # יציאה אם יש שגיאה`
@@ -182,6 +195,7 @@ def handle_client(client_socket, client_address):
     finally:
         client_socket.close()
         logging.debug("Client disconnected")
+        logging.debug(f"[ACTIVE CONNECTIONS] {threading.active_count() - 2}")
 
 
 def main():
@@ -196,7 +210,7 @@ def main():
                 thread = threading.Thread(target=handle_client, args=([client_socket, client_address]))
                 THREADS.append(thread)
                 thread.start()
-                logging.debug(f"[ACTIVE CONNECTIONS] {threading.active_count() - 1}")
+                logging.debug(f"[ACTIVE CONNECTIONS] {threading.active_count() - 2}")
             except socket.error:
                 logging.debug("socket error")
 

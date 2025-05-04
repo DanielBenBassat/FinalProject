@@ -222,7 +222,6 @@ class MusicDB(DataBase):
                         self.update("songs", {"setting1": "verified"}, {"id": song_id})
 
                         # אם השיר נמצא רק בשרת אחד, מבצעים גיבוי
-                        #if song in songs_in_one_server:
                         address = (ip1, port1)
                         temp = False
                         print(temp)

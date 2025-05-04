@@ -70,7 +70,7 @@ def protocol_receive(my_socket):
             return result
     except Exception as e:
         print("Error in protocol_receive:", e)
-        return None, []
+        return "error", ["error"]
 
 
 
