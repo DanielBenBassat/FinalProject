@@ -6,7 +6,13 @@ from protocol import protocol_send
 import os
 import jwt
 import datetime
+import logging
 
+
+LOG_DIR = 'log2'
+LOG_FILE_TASK = os.path.join(LOG_DIR, 'background_task.log')
+LOG_FILE_DB = os.path.join(LOG_DIR, 'database.log')
+LOG_FORMAT = '%(levelname)s | %(asctime)s | %(name)s | %(message)s'
 class MusicDB(DataBase):
     def __init__(self, name, address_list):
         super().__init__(name)
@@ -39,7 +45,32 @@ class MusicDB(DataBase):
             ("song_id", "songs", "id")
         ]
         self.create_table("playlists", playlists_columns, foreign_key)
+        self.task_log = self.setup_logger("TaskLogger", LOG_FILE_TASK)
+        self.db_log = self.setup_logger("dbLogger", LOG_FILE_DB)
 
+    def setup_logger(self, name, log_file):
+        """Set up a logger that logs to a specific file"""
+        logger = logging.getLogger(name)
+        logger.setLevel(logging.DEBUG)
+
+        file_handler = logging.FileHandler(log_file)
+        file_handler.setLevel(logging.DEBUG)
+
+        formatter = logging.Formatter(LOG_FORMAT)
+        file_handler.setFormatter(formatter)
+
+        logger.addHandler(file_handler)
+
+        return logger
+    def logging_protocol(self, func, cmd, data):
+        try:
+            msg = func + " : " + cmd
+            for i in data:
+                if type(i) is not bytes:
+                    msg += ", " + str(i)
+            self.task_log.debug(msg)
+        except Exception as e:  # תפיסת כל סוגי החריגות
+            self.task_log.debug(e)
 #signup
     def add_user(self, username, password):
     # בדיקה אם המשתמש כבר קיים לפי השם
@@ -130,73 +161,7 @@ class MusicDB(DataBase):
         else:
             return None
 
-
-
-
-    def get_song(self, token, song_id, server_address):
-        """
-
-        :param song_id: int
-        :param server_address: tuple of ip(str) and port(int)
-        :return:
-        """
-        file_name = "error"
-        try:
-            print(server_address)
-            media_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-            media_socket.connect(server_address)
-            print("Connection with media server successful!")
-            protocol_send(media_socket, "get", [token, song_id])
-            cmd, data = protocol_receive(media_socket) # "get" , [file_name, file_bytes]
-            media_socket.close()
-            file_name = data[0]
-            if file_name != "error":
-                with open(file_name, 'wb') as file:
-                    file.write(data[1])
-                print(f"File saved as {file_name}")
-
-        except socket.error as e:
-            print(f"Connection failed: {e}")
-
-        finally:
-            print("file_name" + file_name)
-            return file_name
-
-    def post_song(self, file_path, id, server_address, token):
-        """
-
-        :param file_path: str
-        :param id: int
-        :param server_address: tuple of ip(str) and port(int)
-        :return:
-        """
-        val = "error"
-        try:
-            media_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-            media_socket.connect(server_address)
-            with open(file_path, "rb") as file:
-                song_bytes = file.read()
-            print("reading the file after getting it from server 1")
-            print(len(song_bytes))
-
-            cmd = "pst"
-            data = [token, id, song_bytes]
-            protocol_send(media_socket, cmd, data)
-
-            cmd, data = protocol_receive(media_socket)
-            if data[0] == "error":
-                val = False
-            else:
-                val = data[0]
-                media_socket.close()
-
-        except socket.error as e:
-            print(f"Connection failed: {e}")
-        finally:
-            return val
-
-
-    def verify_and_backup_songs(self, token, ADDRESS_LIST):
+    def verify(self, token):
         """
         מאמת שירים שנמצאים במצב 'pending' ומעדכן את הסטטוס שלהם אם הם זמינים.
 
@@ -213,24 +178,27 @@ class MusicDB(DataBase):
             for song in songs_pending:
                 try:
                     song_id = str(song[0])
-                    ip1 = song[3]
-                    port1 = song[4]
+                    setting = ""
+                    if song[5] == "pending":
+                        ip1 = song[3]
+                        port1 = song[4]
+                        setting = "setting1"
+                    elif song[8] == "pending":
+                        ip1 = song[6]
+                        port1 = song[7]
+                        setting = "setting2"
+                    if setting != "":
+                        self.task_log.debug(f"song_id {song_id}, pending")
+                        result = self.verify_func(token, song_id, (ip1, int(port1)))
+                        self.task_log.debug(result)
+                        if result == "found":
+                            self.update("songs", {setting: "verified"}, {"id": song_id})
+                        elif result == "lost":
+                            if setting == "setting2":
+                                self.update("songs", {"ip2" : "" , "port2": "", "setting2": ""}, {"id": song_id})
+                            elif setting == "setting1":
+                                self.update("songs", {"ip1" : "" , "port1": "", "setting1": ""}, {"id": song_id})
 
-                    # ניסיון לקבל את השיר מהשרת
-                    file_name = self.get_song(token, song_id, (ip1, int(port1)))
-                    if file_name != "error":
-                        self.update("songs", {"setting1": "verified"}, {"id": song_id})
-
-                        # אם השיר נמצא רק בשרת אחד, מבצעים גיבוי
-                        address = (ip1, port1)
-                        temp = False
-                        print(temp)
-                        while not temp:
-                            address2 = self.find_address()
-                            if address2 != address:
-                                temp = True
-                        print(address2)
-                        self.post_song(file_name, song_id, address2, token)
 
                 except ValueError as e:
                     print(f"Error converting port to integer for song ID {song_id}: {e}")
@@ -239,8 +207,82 @@ class MusicDB(DataBase):
 
         except Exception as e:
             print(f"Database or connection error in verify_songs: {e}")
+    def verify_func(self, token, song_id, server_address):
+        """
+
+        :param song_id: int
+        :param server_address: tuple of ip(str) and port(int)
+        :return:
+        """
+        try:
+            print(server_address)
+            media_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+            media_socket.connect(server_address)
+            print("Connection with media server successful!")
+            cmd = "vrf"
+            data = [token, song_id]
+            protocol_send(media_socket, cmd, data)
+            self.logging_protocol("send", cmd, data )
+            cmd, data = protocol_receive(media_socket) # "get" , [file_name, file_bytes]
+            self.logging_protocol("recv", cmd, data)
+            media_socket.close()
+            return data[0]
 
 
+        except socket.error as e:
+            print(f"Connection failed: {e}")
+
+        #finally:
+        #   print("file_name" + file_name)
+    def backup_songs(self, token):
+        songs_verified = self.select("songs", '*', {"setting1": "verified", "setting2": "verified"}, "OR")
+        # אם השיר נמצא רק בשרת אחד, מבצעים גיבוי
+        for song in songs_verified:
+            song_id = str(song[0])
+            setting = ""
+            if song[5] == "verified" and (song[8] is None or song[8] == ""):
+                ip1 = song[3]
+                port1 = song[4]
+                setting = "setting2"
+            elif song[8] == "verified" and (song[5] is None or song[5] == ""):
+                ip1 = song[6]
+                port1 = song[7]
+                setting = "setting1"
+            if setting != "":
+                address = (ip1, int(port1)) #הכתובת שהשיר נמצא כרגע
+                temp = False
+                while not temp:
+                    address2 = self.find_address() # כתובת חדשה לגיבוי השיר
+                    if address2 != address:
+                        temp = True
+                self.task_log.debug(song)
+                val = self.backup_func(song_id, address, address2, token)
+                if val:
+                    data = {"ip2": address2[0], "port2": address2[1]}
+                    data[setting] = "pending"
+                    self.update("songs", data, {"id": int(song_id)})
+    def backup_func(self, id, server1, server2, token):
+        """
+        :param id: int
+        :param server_address: tuple of ip(str) and port(int)
+        :return:
+        """
+        val = False
+        try:
+            media_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+            media_socket.connect(server1)
+
+            cmd = "bkg"
+            data = [token, id, server2[0], server2[1]]
+            protocol_send(media_socket, cmd, data)
+            self.logging_protocol("send", cmd, data)
+
+            media_socket.close()
+            val = True
+        except socket.error as e:
+            print(f"Connection failed: {e}")
+        finally:
+            return val
     def add_to_playlist(self, username, playlist_name, song_id):
         # בדיקה אם המשתמש קיים
         user_exists = self.select("users", where_condition={"username": username})

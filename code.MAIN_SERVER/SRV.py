@@ -39,7 +39,8 @@ def background_task():
     db = MusicDB("my_db.db", ADDRESS_LIST)
     token = generate_infinity_token()
     while True:
-        db.verify_and_backup_songs(token, ADDRESS_LIST)
+        db.verify(token)
+        db.backup_songs(token)
         time.sleep(15)
 
 
