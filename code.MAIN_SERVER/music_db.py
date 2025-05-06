@@ -11,7 +11,7 @@ import logging
 
 LOG_DIR = 'log2'
 LOG_FILE_TASK = os.path.join(LOG_DIR, 'background_task.log')
-LOG_FILE_DB = os.path.join(LOG_DIR, 'database.log')
+LOG_FILE_DB = os.path.join(LOG_DIR, 'music_db.log')
 LOG_FORMAT = '%(levelname)s | %(asctime)s | %(name)s | %(message)s'
 class MusicDB(DataBase):
     def __init__(self, name, address_list):
@@ -46,7 +46,7 @@ class MusicDB(DataBase):
         ]
         self.create_table("playlists", playlists_columns, foreign_key)
         self.task_log = self.setup_logger("TaskLogger", LOG_FILE_TASK)
-        self.db_log = self.setup_logger("dbLogger", LOG_FILE_DB)
+        self.music_db_log = self.setup_logger("dbLogger", LOG_FILE_DB)
 
     def setup_logger(self, name, log_file):
         """Set up a logger that logs to a specific file"""
@@ -62,6 +62,7 @@ class MusicDB(DataBase):
         logger.addHandler(file_handler)
 
         return logger
+
     def logging_protocol(self, func, cmd, data):
         try:
             msg = func + " : " + cmd
@@ -234,7 +235,7 @@ class MusicDB(DataBase):
 
         #finally:
         #   print("file_name" + file_name)
-    def backup_songs(self, token):
+    def backup_songs(self, token, token2):
         songs_verified = self.select("songs", '*', {"setting1": "verified", "setting2": "verified"}, "OR")
         # אם השיר נמצא רק בשרת אחד, מבצעים גיבוי
         for song in songs_verified:
@@ -256,24 +257,20 @@ class MusicDB(DataBase):
                     if address2 != address:
                         temp = True
                 self.task_log.debug(song)
-                val = self.backup_func(song_id, address, address2, token)
+                val = self.backup_func(token, token2, song_id, address, address2)
                 if val:
                     data = {"ip2": address2[0], "port2": address2[1]}
                     data[setting] = "pending"
                     self.update("songs", data, {"id": int(song_id)})
-    def backup_func(self, id, server1, server2, token):
-        """
-        :param id: int
-        :param server_address: tuple of ip(str) and port(int)
-        :return:
-        """
+
+    def backup_func(self, token, token2, id, server1, server2):
         val = False
         try:
             media_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
             media_socket.connect(server1)
 
             cmd = "bkg"
-            data = [token, id, server2[0], server2[1]]
+            data = [token, token2, id, server2[0], server2[1]]
             protocol_send(media_socket, cmd, data)
             self.logging_protocol("send", cmd, data)
 

@@ -66,28 +66,6 @@ class UserInterface:
             print("good bye")
             self.root.destroy()  # <- שורת הקסם שחסרה
 
-    def reset(self):
-        """ פעולה שתאפס את כל הדברים בלקוח ובגרפיקה """
-        # יצירת מופע חדש של הלקוח, אשר מאתחל את כל המאפיינים מחדש
-        self.client.gui_to_client_queue.put("shutdown")
-        self.client.exit()
-        time.sleep(0.1)
-        while not self.client.q.my_queue.empty():
-            file_path = self.client.q.my_queue.get()
-            if os.path.exists(file_path):
-                os.remove(file_path)
-
-        if os.path.exists(self.client.q.old_song_path) and self.client.q.old_song_path != "":
-            os.remove(self.client.q.old_song_path)
-        if os.path.exists(self.client.q.prev_song_path) and self.client.q.prev_song_path != "":
-            os.remove(self.client.q.prev_song_path)
-        if os.path.exists(self.client.q.recent_song_path) and self.client.q.recent_song_path != "":
-            time.sleep(0.1)
-            os.remove(self.client.q.recent_song_path)
-        self.client.main_socket.close()
-        self.client = Client()
-        self.show_frame("welcome")
-
 
 
 
@@ -102,6 +80,8 @@ class UserInterface:
             self.frames["profile"] = self.create_profile_screen()
         if frame_name == "login":
             self.frames["login"] = self.create_login_screen()
+        if frame_name == "add_song":
+            self.frames["add_song"] = self.create_add_song_screen()
 
 
         self.frames[frame_name].pack(fill="both", expand=True)

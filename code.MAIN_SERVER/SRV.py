@@ -37,10 +37,11 @@ def logging_protocol(func, cmd, data):
 
 def background_task():
     db = MusicDB("my_db.db", ADDRESS_LIST)
-    token = generate_infinity_token()
+    token = generate_token()
+    token2 = generate_token()
     while True:
         db.verify(token)
-        db.backup_songs(token)
+        db.backup_songs(token, token2)
         time.sleep(15)
 
 
@@ -48,18 +49,6 @@ def generate_token():
     """יוצר טוקן JWT עם user_id וחותם עליו עם המפתח הסודי."""
     payload = {
         "exp": datetime.datetime.utcnow() + datetime.timedelta(hours=1),  # תוקף לשעה
-        "iat": datetime.datetime.utcnow(),  # זמן יצירה
-    }
-    token = jwt.encode(payload, SECRET_KEY, algorithm="HS256")
-    return token
-
-def generate_infinity_token():
-    """
-    יוצר טוקן JWT ללא תפוגה, המכיל את זמן היצירה.
-
-    :return: מחרוזת טוקן JWT חתום עם HS256.
-    """
-    payload = {
         "iat": datetime.datetime.utcnow(),  # זמן יצירה
     }
     token = jwt.encode(payload, SECRET_KEY, algorithm="HS256")
