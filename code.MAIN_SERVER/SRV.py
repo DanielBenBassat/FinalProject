@@ -48,7 +48,7 @@ def background_task():
 def generate_token():
     """יוצר טוקן JWT עם user_id וחותם עליו עם המפתח הסודי."""
     payload = {
-        "exp": datetime.datetime.utcnow() + datetime.timedelta(hours=1),  # תוקף לשעה
+        "exp": datetime.datetime.utcnow() + datetime.timedelta(seconds = 3),  # תוקף לשעה
         "iat": datetime.datetime.utcnow(),  # זמן יצירה
     }
     token = jwt.encode(payload, SECRET_KEY, algorithm="HS256")
@@ -65,61 +65,69 @@ def verify_token(token):
         return {"valid": False, "error": "Invalid token"}
 
 
+def log_signup(db, client_socket):
+    logging.debug("back to waiting for log")
+    songs_dict = db.all_songs()
+    songs_dict = pickle.dumps(songs_dict)
+    token = generate_token()
+    temp = True
+    val = True
+    while temp:
+        msg = protocol_receive(client_socket)
+        if msg is not None:
+            cmd = msg[0]
+            data = msg[1]
+            logging_protocol("receive", cmd, data)
+            if cmd == "sig":
+                username = data[0]
+                password = data[1]
+                check = db.add_user(username, password)
+
+                cmd = "sig"
+                if check:
+                    data = ["True", token, songs_dict]
+                    temp = False
+                else:
+                    data = ["False", "existing"]
+                protocol_send(client_socket, cmd, data)
+                logging_protocol("send", cmd, data)
+
+            elif cmd == "log":
+                username = data[0]
+                password = data[1]
+                val, problem = db.verified_user(username, password)
+                cmd = "log"
+                if not val:
+                    if problem == "username":
+                        data = ["False", "username"]
+                        protocol_send(client_socket, cmd, data)
+                    elif problem == "password":
+                        data = ["False", "password"]
+                        protocol_send(client_socket, cmd, data)
+                elif val:
+                    temp = False
+                    liked_song = db.get_user_playlists(username, "liked_song")
+                    liked_song = pickle.dumps(liked_song)
+                    data = ["True", token, songs_dict, liked_song]
+                    protocol_send(client_socket, cmd, data)
+                logging_protocol("send", cmd, data)
+
+            elif cmd == "ext" or cmd == "error":
+                print("EXT command received, breaking loop.")
+                temp = False
+                val = False
+    logging.debug("finish loign")
+    return val
+
+
 def handle_client(client_socket, client_address):
     try:
         db = MusicDB("my_db.db", ADDRESS_LIST)
-        songs_dict = db.all_songs()
-        songs_dict = pickle.dumps(songs_dict)
-        token = generate_token()
-        temp = False
-        temp2 = True
-        while not temp:
-            msg = protocol_receive(client_socket)
-            if msg is not None:
-                cmd = msg[0]
-                data = msg[1]
-                logging_protocol("receive", cmd, data)
-                if cmd == "sig":
-                    username = data[0]
-                    password = data[1]
-                    check = db.add_user(username, password)
+        temp = log_signup(db, client_socket)
 
-                    cmd = "sig"
-                    if check:
-                        data = ["True", token, songs_dict]
-                        temp = True
-                    else:
-                        data = ["False", "existing"]
-                    protocol_send(client_socket, cmd, data)
-                    logging_protocol("send", cmd, data)
-
-                elif cmd == "log":
-                    username = data[0]
-                    password = data[1]
-                    val, problem = db.verified_user(username, password)
-                    cmd = "log"
-                    if not val:
-                        if problem == "username":
-                            data = ["False", "username"]
-                            protocol_send(client_socket, cmd, data)
-                        elif problem == "password":
-                            data = ["False", "password"]
-                            protocol_send(client_socket, cmd, data)
-                    elif val:
-                        temp = True
-                        liked_song = db.get_user_playlists(username, "liked_song")
-                        liked_song = pickle.dumps(liked_song)
-                        data = ["True", token, songs_dict, liked_song]
-                        protocol_send(client_socket, cmd, data)
-                    logging_protocol("send", cmd, data)
-
-                elif cmd == "ext" or cmd == "error":
-                    print("EXT command received, breaking loop.")
-                    temp = True
-                    temp2 =False
-
-        while temp2:
+        while temp:
             try:
+                print("waiting for cmd")
                 cmd, data = protocol_receive(client_socket)
 
                 logging_protocol("receive", cmd, data)
@@ -132,7 +140,7 @@ def handle_client(client_socket, client_address):
                     data = ["false", error]
                     protocol_send(client_socket, cmd, data)
                     logging_protocol("send", cmd, data)
-                    break
+                    log_signup(db, client_socket)
                 elif valid.get("valid"):
                     if cmd == "gad":  # [id]
                         song_id = data[1]
@@ -150,7 +158,6 @@ def handle_client(client_socket, client_address):
                         name = data[1]
                         artist = data[2]
                         data = db.add_song(name, artist)
-                        cmd = "pad"
                         protocol_send(client_socket, cmd, data)
                         logging_protocol("send", cmd, data)
 

@@ -48,6 +48,9 @@ class MusicDB(DataBase):
         self.task_log = self.setup_logger("TaskLogger", LOG_FILE_TASK)
         self.music_db_log = self.setup_logger("dbLogger", LOG_FILE_DB)
 
+        # welcoming , hold the names of the tables and the fields
+        self.tables_and_fields_name = {"song" : [], }
+
     def setup_logger(self, name, log_file):
         """Set up a logger that logs to a specific file"""
         logger = logging.getLogger(name)

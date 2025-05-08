@@ -19,30 +19,42 @@ LOG_FORMAT = '%(levelname)s | %(asctime)s | %(name)s | %(message)s'
 
 class Client:
     def __init__(self, ip, port):
+        try:
+            # מגדיר את כתובת השרת והסוקט
+            self.MAIN_SERVER_ADDR = (ip, port)
+            self.main_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+            self.main_socket.connect(self.MAIN_SERVER_ADDR)
 
-        self.MAIN_SERVER_ADDR = (ip, port)
-        self.main_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-        self.main_socket.connect(self.MAIN_SERVER_ADDR)
+            # יצירת תורים
+            self.q = SongsQueue()
+            self.p = MusicPlayer()
+            self.client_to_gui_queue = queue.Queue()
+            self.gui_to_client_queue = queue.Queue()
 
-        self.q = SongsQueue()
-        self.p = MusicPlayer()
-        self.client_to_gui_queue = queue.Queue()
-        self.gui_to_client_queue = queue.Queue()
+            # אתחול משתנים
+            self.username = ""
+            self.token = ""
+            self.song_id_dict = {}
+            self.liked_song = []
+            self.is_expired = True
 
-        player_thread = threading.Thread(target=self.player_func, daemon=True)
-        player_thread.start()
+            # יצירת Thread לניהול השחקן
+            self.player_thread = threading.Thread(target=self.player_func, daemon=True)
 
-        self.username = ""
-        self.token = ""
-        self.song_id_dict = {}
-        self.liked_song = []
+            # יצירת תיקית לוגים אם לא קיימת
+            if not os.path.isdir(LOG_DIR):
+                os.makedirs(LOG_DIR)
 
-        if not os.path.isdir(LOG_DIR):
-            os.makedirs(LOG_DIR)
-        # Initialize loggers (runs at import)
-        self.client_log = self.setup_logger("ClientLogger", LOG_FILE_CLIENT)
-        self.player_log = self.setup_logger("PlayerLogger", LOG_FILE_PLAYER)
+            # אתחול של לוגרים (ריצה בעת יצוא המודול)
+            self.client_log = self.setup_logger("ClientLogger", LOG_FILE_CLIENT)
+            self.player_log = self.setup_logger("PlayerLogger", LOG_FILE_PLAYER)
 
+        except socket.error as e:
+            self.client_log.error(f"Socket error: {e}")
+            print(f"Socket error: {e}")
+        except Exception as e:
+            self.client_log.error(f"Error in client initialization: {e}")
+            print(f"Error in client initialization: {e}")
 
 
 
@@ -74,6 +86,17 @@ class Client:
         except Exception as e:  # תפיסת כל סוגי החריגות
             self.client_log.debug(e)
 
+    def logout(self):
+        self.q = SongsQueue()
+        self.p = MusicPlayer()
+        self.client_to_gui_queue = queue.Queue()
+        self.gui_to_client_queue = queue.Queue()
+        self.username = ""
+        self.token = ""
+        self.song_id_dict = {}
+        self.liked_song = []
+
+
     def song_and_playlist(self, cmd, playlist_name, song_id):
         try:
             if cmd == "add":
@@ -84,7 +107,8 @@ class Client:
 
                 cmd, data = protocol_receive(self.main_socket)
                 self.logging_protocol("received", cmd, data)
-                if data[0] == "Token has expired":
+                if data[0] == "Token has expired" or data[0] == "Invalid token":
+                    self.is_expired = True
                     return 'Token has expired'
                 if data[0] == 'True':
                     self.liked_song.append(song_id)
@@ -96,7 +120,8 @@ class Client:
 
                 cmd, data = protocol_receive(self.main_socket)
                 self.logging_protocol("received", cmd, data)
-                if data[0] == "Token has expired":
+                if data[0] == "Token has expired" or data[0] == "Invalid token":
+                    self.is_expired = True
                     return 'Token has expired'
                 if data[0] == 'True':
                     self.liked_song.remove(song_id)
@@ -108,9 +133,42 @@ class Client:
     def exit(self):
         cmd = "ext"
         data = [self.token]
-        protocol_send(self.main_socket, cmd, data)
-        self.main_socket.close()
-        self.logging_protocol("send", cmd, data)
+        #protocol_send(self.main_socket, cmd, data)
+        if self.main_socket:
+            try:
+                self.main_socket.close()
+            except Exception as e:
+                self.client_log.debug(f"Error closing socket: {e}")
+        #self.logging_protocol("send", cmd, data)
+
+        self.q = SongsQueue()
+        self.p = MusicPlayer()
+        self.client_to_gui_queue = queue.Queue()
+        self.gui_to_client_queue = queue.Queue()
+
+        self.player_thread.join()
+
+        self.username = ""
+        self.token = ""
+        self.song_id_dict = {}
+        self.liked_song = []
+        self.is_expired = True
+
+    def reset(self):
+        self.client_log.debug("logout")
+        try:
+            self.q.clear_queue()
+            self.client_to_gui_queue = queue.Queue()
+            self.gui_to_client_queue = queue.Queue()
+
+
+            self.username = ""
+            self.token = ""
+            self.song_id_dict = {}
+            self.liked_song = []
+            self.is_expired = True
+        except Exception as e:
+            self.client_log.debug(f"Error closing socket: {e}")
 
 
     def get_address(self, song_id):
@@ -126,7 +184,8 @@ class Client:
 
         cmd, data = protocol_receive(self.main_socket)
         self.logging_protocol("received", cmd, data)
-        if data[0] == "Token has expired":
+        if data[1] == "Token has expired" or data[1] == "Invalid token":
+            self.is_expired = True
             return 'Token has expired'
 
         ip = data[0]
@@ -156,7 +215,8 @@ class Client:
             cmd, data = protocol_receive(media_socket)
             self.logging_protocol("received", cmd, data)
             media_socket.close()
-            if data[0] == "Invalid token":
+            if data[0] == "Token has expired" or data[0] == "Invalid token":
+                self.is_expired = True
                 file_name = "Invalid token"
             else:
 
@@ -184,9 +244,10 @@ class Client:
 
         media_server_address = self.get_address(song_id)
         if media_server_address == 'Token has expired':
+
             return 'Token has expired'
         else:
-            file_name =  self.get_song(song_id, media_server_address)
+            file_name = self.get_song(song_id, media_server_address)
             if file_name == "error":
                 return "error"
             elif file_name == "Invalid token":
@@ -227,6 +288,7 @@ class Client:
         cmd, data = protocol_receive(self.main_socket) # "pad", [id, ip, port]
         self.logging_protocol("received", cmd, data)
         if data[0] == "Invalid token" or data[0] == "Token has expired" or data[0] == "error":
+            self.is_expired = True
             return data
         else:
             song_id = int(data[1])
@@ -260,7 +322,8 @@ class Client:
 
             cmd, data = protocol_receive(media_socket)
             self.logging_protocol("received", cmd, data)
-            if data[0] == "Invalid token":
+            if data[0] == "Invalid token" or data[0] == "Token is expired":
+                self.is_expired = True
                 val = data
             else:
                 val = data
@@ -283,7 +346,11 @@ class Client:
             if data[0] == "True":
                 self.username = username
                 self.token = data[1]
+                self.is_expired = False
                 self.song_id_dict = pickle.loads(data[2])
+                if not self.player_thread.is_alive():
+                    self.player_thread.start()
+
 
         elif cmd == "2":
             cmd = "log"
@@ -295,19 +362,23 @@ class Client:
             if data[0] == "True":
                 self.username = username
                 self.token = data[1]
+                self.is_expired = False
                 self.song_id_dict = pickle.loads(data[2])
                 print(self.song_id_dict)
                 self.liked_song = pickle.loads(data[3])
 
                 print("liked song")
                 print(self.liked_song)
+                if not self.player_thread.is_alive():
+                    self.player_thread.start()
+
         return data
 
 
 
 
     def player_func(self):
-        while True:
+        while True: # and not self.is_expired:
             cmd = self.gui_to_client_queue.get()
             self.queue_logging()
             self.player_log.debug(cmd)
@@ -340,9 +411,9 @@ class Client:
 
 
             self.player_log.debug("*********************************************************************")
-
+        self.player_log.debug("finish player thread")
     def play_loop(self, cmd):
-        while self.gui_to_client_queue.empty():
+        while self.gui_to_client_queue.empty(): # and not self.is_expired:
             if not self.q.my_queue.empty() or (cmd == "prev" and self.q.prev_song_path != ""):
                 song_path = self.q.get_song(cmd)
                 self.queue_logging()
@@ -355,6 +426,7 @@ class Client:
                 self.player_log.debug("nothing to play")
                 self.client_to_gui_queue.put("nothing to play")
                 break
+        self.player_log.debug("play loop has finished")
 
 
 

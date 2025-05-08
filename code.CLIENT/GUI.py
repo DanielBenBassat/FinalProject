@@ -3,7 +3,6 @@ import pickle
 SCREEN_WIDTH = 700
 SCREEN_HEIGHT = 600
 from client_class import Client
-from player import MusicPlayer
 import os
 import threading
 import time
@@ -12,6 +11,7 @@ from tkinter import messagebox
 import hashlib
 IP = "127.0.0.1"
 PORT = 5555
+
 
 class UserInterface:
     def __init__(self, root, client):
@@ -39,6 +39,9 @@ class UserInterface:
 
 
 
+    def logout(self):
+        self.client.reset()
+        self.show_frame("welcome")
 
 
     def closing(self):
@@ -70,6 +73,7 @@ class UserInterface:
 
 
     def show_frame(self, frame_name):
+        print("show welcome")
         # הסתרת כל המסכים
         for frame in self.frames.values():
             frame.pack_forget()
@@ -322,16 +326,21 @@ class UserInterface:
         print(song_id)
         #self.playing = True
         self.client.listen_song(song_id)
+        if self.client.is_expired:
+            self.logout()
 
     def play_song(self, song_id):
         print(song_id)
         self.client.q.clear_queue()
         self.client.listen_song(song_id)
+
         if self.playing:
             self.playing = False
             self.counter = 0
 
         self.play_pause()
+        if self.client.is_expired:
+            self.logout()
 
     def like_song(self, song_id, like_buttom):
         print(song_id)
@@ -342,6 +351,8 @@ class UserInterface:
         else:
             self.client.song_and_playlist("add", "liked_song", song_id)
             like_buttom.config(text="❤")
+        if self.client.expired:
+            self.logout()
     def play_playlist(self, playlist):
         # כאן תוכל להפעיל את הפונקציה שתנגן את כל השירים שאהב המשתמש
         self.client.play_playlist(playlist)
@@ -396,6 +407,8 @@ class UserInterface:
             messagebox.showerror("error", msg[1])
         elif msg[0] == "True":
             messagebox.showinfo("good", msg[1])
+        if self.client.expired:
+            self.logout()
 
 
 
@@ -459,7 +472,7 @@ class UserInterface:
             tk.Button(navigation_frame, text="Go to Home", command=lambda: self.show_frame("home")).pack(pady=10)
             tk.Button(navigation_frame, text="Go to Add Song", command=lambda: self.show_frame("add_song")).pack(pady=10)
 
-        #tk.Button(navigation_frame, text="Logout", command=lambda: self.reset()).pack(pady=10)  # כפתור התנתקות
+        tk.Button(navigation_frame, text="Logout", command=lambda: self.logout()).pack(pady=10)  # כפתור התנתקות
 
 
 
