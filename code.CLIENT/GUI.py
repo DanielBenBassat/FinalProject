@@ -40,14 +40,18 @@ class UserInterface:
 
 
     def logout(self):
+        self.client.gui_to_client_queue.put("shutdown")
         self.client.reset()
         self.show_frame("welcome")
 
 
     def closing(self):
         try:
+            print("closing")
             self.client.gui_to_client_queue.put("shutdown")
+            print("shot")
             self.client.exit()
+
             time.sleep(0.1)
             while not self.client.q.my_queue.empty():
                 file_path = self.client.q.my_queue.get()

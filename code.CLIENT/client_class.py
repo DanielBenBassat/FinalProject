@@ -131,35 +131,43 @@ class Client:
 
 
     def exit(self):
-        cmd = "ext"
-        data = [self.token]
-        #protocol_send(self.main_socket, cmd, data)
-        if self.main_socket:
-            try:
-                self.main_socket.close()
-            except Exception as e:
-                self.client_log.debug(f"Error closing socket: {e}")
-        #self.logging_protocol("send", cmd, data)
+        try:
+            print("exit")
+            cmd = "ext"
+            data = [self.token]
+            protocol_send(self.main_socket, cmd, data)
+            self.logging_protocol("send", cmd, data)
+            if self.main_socket:
+                try:
+                    self.main_socket.close()
+                except Exception as e:
+                    self.client_log.debug(f"Error closing socket: {e}")
 
-        self.q = SongsQueue()
-        self.p = MusicPlayer()
-        self.client_to_gui_queue = queue.Queue()
-        self.gui_to_client_queue = queue.Queue()
+            self.q = SongsQueue()
+            self.p = MusicPlayer()
+            self.client_to_gui_queue = queue.Queue()
+            self.gui_to_client_queue = queue.Queue()
 
-        self.player_thread.join()
+            self.player_thread.join()
 
-        self.username = ""
-        self.token = ""
-        self.song_id_dict = {}
-        self.liked_song = []
-        self.is_expired = True
+            self.username = ""
+            self.token = ""
+            self.song_id_dict = {}
+            self.liked_song = []
+            self.is_expired = True
+            print("end of exit")
+        except Exception as e:
+            print(e)
 
     def reset(self):
         self.client_log.debug("logout")
         try:
             self.q.clear_queue()
-            self.client_to_gui_queue = queue.Queue()
+            while not self.client_to_gui_queue.empty():
+                temp = self.client_to_gui_queue.get()
             self.gui_to_client_queue = queue.Queue()
+            while not self.gui_to_client_queue.empty():
+                temp = self.gui_to_client_queue.get()
 
 
             self.username = ""
@@ -404,6 +412,7 @@ class Client:
 
             elif cmd == "shutdown":
                 self.p.shutdown()
+                break
 
             if play:
                 print(cmd)
