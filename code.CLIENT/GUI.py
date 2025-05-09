@@ -40,7 +40,8 @@ class UserInterface:
 
 
     def logout(self):
-        self.client.gui_to_client_queue.put("shutdown")
+
+        self.client.gui_to_client_queue.put("stop")
         self.client.reset()
         self.show_frame("welcome")
 
@@ -331,6 +332,7 @@ class UserInterface:
         #self.playing = True
         self.client.listen_song(song_id)
         if self.client.is_expired:
+            messagebox.showerror("error", "token invalid or token has expired")
             self.logout()
 
     def play_song(self, song_id):
@@ -344,6 +346,7 @@ class UserInterface:
 
         self.play_pause()
         if self.client.is_expired:
+            messagebox.showerror("error", "token invalid or token has expired")
             self.logout()
 
     def like_song(self, song_id, like_buttom):
@@ -356,6 +359,7 @@ class UserInterface:
             self.client.song_and_playlist("add", "liked_song", song_id)
             like_buttom.config(text="❤")
         if self.client.expired:
+            messagebox.showerror("error", "token invalid or token has expired")
             self.logout()
     def play_playlist(self, playlist):
         # כאן תוכל להפעיל את הפונקציה שתנגן את כל השירים שאהב המשתמש
@@ -412,6 +416,7 @@ class UserInterface:
         elif msg[0] == "True":
             messagebox.showinfo("good", msg[1])
         if self.client.expired:
+            messagebox.showerror("error", "token invalid or token has expired")
             self.logout()
 
 

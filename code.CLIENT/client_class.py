@@ -148,7 +148,7 @@ class Client:
             self.client_to_gui_queue = queue.Queue()
             self.gui_to_client_queue = queue.Queue()
 
-            self.player_thread.join()
+            #self.player_thread.join()
 
             self.username = ""
             self.token = ""
@@ -356,8 +356,8 @@ class Client:
                 self.token = data[1]
                 self.is_expired = False
                 self.song_id_dict = pickle.loads(data[2])
-                if not self.player_thread.is_alive():
-                    self.player_thread.start()
+                #if not self.player_thread.is_alive():
+                  #  self.player_thread.start()
 
 
         elif cmd == "2":
