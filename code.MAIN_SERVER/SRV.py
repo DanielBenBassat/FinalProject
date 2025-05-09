@@ -25,13 +25,20 @@ LOG_FILE = LOG_DIR + '/main_server.log'
 
 
 def logging_protocol(func, cmd, data):
+    """
+    Logs a protocol-level action for debugging.
+
+    :param func: The type of operation ("send" or "recv").
+    :param cmd: The command used .
+    :param data: Data sent or received in the protocol.
+    """
     try:
         msg = func + " : " + cmd
         for i in data:
             if type(i) is not bytes:
                 msg += ", " + str(i)
         logging.debug(msg)
-    except Exception as e:  # תפיסת כל סוגי החריגות
+    except Exception as e:
         logging.debug(e)
 
 
@@ -46,16 +53,28 @@ def background_task():
 
 
 def generate_token():
-    """יוצר טוקן JWT עם user_id וחותם עליו עם המפתח הסודי."""
+    """
+    Generates a new JWT token with a short expiration time.
+
+    :return: A JWT token string encoded using the HS256 algorithm, containing:
+             - 'exp': Token expiration time (5 minutes from creation)
+             - 'iat': Token creation time (current UTC time)
+    """
     payload = {
-        "exp": datetime.datetime.utcnow() + datetime.timedelta(seconds =5),  # תוקף לשעה
+        "exp": datetime.datetime.utcnow() + datetime.timedelta(minutes= 5),  # תוקף לשעה
         "iat": datetime.datetime.utcnow(),  # זמן יצירה
     }
     token = jwt.encode(payload, SECRET_KEY, algorithm="HS256")
     return token
 
+
 def verify_token(token):
-    """בודק אם טוקן JWT תקף ומחזיר את הנתונים שבו."""
+    """
+    Verifies a JWT token.
+
+    :param token: The token string to verify.
+    :return: A dict with 'valid': True/False. if True return איק פשטךםשג and if false return the type of error
+    """
     try:
         payload = jwt.decode(token, SECRET_KEY, algorithms=["HS256"])
         return {"valid": True, "data": payload}
