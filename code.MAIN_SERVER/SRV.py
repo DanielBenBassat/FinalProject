@@ -48,7 +48,7 @@ def background_task():
 def generate_token():
     """יוצר טוקן JWT עם user_id וחותם עליו עם המפתח הסודי."""
     payload = {
-        "exp": datetime.datetime.utcnow() + datetime.timedelta(seconds =5),  # תוקף לשעה
+        "exp": datetime.datetime.utcnow() + datetime.timedelta(seconds =50),  # תוקף לשעה
         "iat": datetime.datetime.utcnow(),  # זמן יצירה
     }
     token = jwt.encode(payload, SECRET_KEY, algorithm="HS256")
