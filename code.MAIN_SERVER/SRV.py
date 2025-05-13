@@ -61,7 +61,7 @@ def generate_token():
              - 'iat': Token creation time (current UTC time)
     """
     payload = {
-        "exp": datetime.datetime.utcnow() + datetime.timedelta(minutes= 5),  # תוקף לשעה
+        "exp": datetime.datetime.utcnow() + datetime.timedelta(minutes= 50),  # תוקף לשעה
         "iat": datetime.datetime.utcnow(),  # זמן יצירה
     }
     token = jwt.encode(payload, SECRET_KEY, algorithm="HS256")
@@ -179,6 +179,14 @@ def handle_client(client_socket, client_address):
                         data = db.add_song(name, artist)
                         protocol_send(client_socket, cmd, data)
                         logging_protocol("send", cmd, data)
+
+                    elif cmd == "rfs": # [token]
+                        song_list = db.all_songs()
+                        song_list = pickle.dumps(song_list)
+                        data = ["True", song_list]
+                        protocol_send(client_socket, cmd, data)
+                        logging_protocol("send", cmd, data)
+
 
                     elif cmd == "atp": #add to playlist
                         username = data[1]

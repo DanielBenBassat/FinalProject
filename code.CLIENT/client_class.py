@@ -96,6 +96,19 @@ class Client:
         self.song_id_dict = {}
         self.liked_song = []
 
+    def refresh_song_dict(self):
+        cmd = "rfs"
+        data = [self.token]
+        protocol_send(self.main_socket, cmd, data)
+        self.logging_protocol("send", cmd, data)
+        cmd, data = protocol_receive(self.main_socket)
+        self.logging_protocol("received", cmd, data)
+        if data[0] == "True":
+            song_dict = pickle.loads(data[1])
+            self.song_id_dict = song_dict
+            return True
+
+
 
     def song_and_playlist(self, cmd, playlist_name, song_id):
         try:

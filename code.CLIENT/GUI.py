@@ -287,6 +287,15 @@ class UserInterface:
 
         # כותרת עליונה
         tk.Label(content_frame, text=f"Home - Hello {self.client.username}", font=("Arial", 20), bg="white").pack(anchor="w", pady=10)
+
+        # שורת רענון
+        refresh_frame = tk.Frame(content_frame, bg="white")
+        refresh_frame.pack(anchor="w", pady=(0, 10))
+
+        tk.Label(refresh_frame, text = "Refresh", font=("Arial", 12), bg="white").pack(side="left", padx=(0, 5))
+        refresh_button = tk.Button(refresh_frame, text="🔄", font=("Arial", 12), command=self.refresh_home_screen)
+        refresh_button.pack(side="left")
+
         # תווית וכפתור לשירים שאהבתי
         liked_frame = tk.Frame(content_frame, bg="white")
         liked_frame.pack(anchor="w", pady=(10, 10))
@@ -364,6 +373,12 @@ class UserInterface:
     def play_playlist(self, playlist):
         # כאן תוכל להפעיל את הפונקציה שתנגן את כל השירים שאהב המשתמש
         self.client.play_playlist(playlist)
+
+    def refresh_home_screen(self):
+        if self.client.refresh_song_dict():
+            self.show_frame("home")
+            messagebox.showinfo("refresh", "refresh has done successfully")
+
 
     def create_add_song_screen(self):
         frame = tk.Frame(self.root, bg="white")
