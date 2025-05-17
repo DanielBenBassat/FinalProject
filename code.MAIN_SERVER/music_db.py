@@ -4,8 +4,6 @@ import socket
 from protocol import protocol_receive
 from protocol import protocol_send
 import os
-import jwt
-import datetime
 import logging
 
 
@@ -44,12 +42,28 @@ class MusicDB(DataBase):
             ("username", "users", "username"),
             ("song_id", "songs", "id")
         ]
+        server_columns = {
+            "id": "INTEGER PRIMARY KEY AUTOINCREMENT",
+            "IP":   "TEXT NOT NULL",
+            "port": "INTEGER NOT NULL",
+            "setting": "TEXT NOT NULL" # active or fallen
+        }
+        self.create_table("servers", server_columns)
+        existing_servers = self.select("servers")
+        if not existing_servers:
+            self.insert_server_columns()
+
         self.create_table("playlists", playlists_columns, foreign_key)
         self.task_log = self.setup_logger("TaskLogger", LOG_FILE_TASK)
         self.music_db_log = self.setup_logger("dbLogger", LOG_FILE_DB)
 
-        # welcoming , hold the names of the tables and the fields
-        self.tables_and_fields_name = {"song" : [], }
+
+
+
+    def insert_server_columns(self):
+        for server in self.address_list:
+            data = {"IP": server[0], "port": server[1], "setting": "pending" }
+            self.insert("servers", data)
 
     def setup_logger(self, name, log_file):
         """Set up a logger that logs to a specific file"""
@@ -116,8 +130,16 @@ class MusicDB(DataBase):
         return dict
 
     def find_address(self):
-        index = random.randint(0, len(self.address_list)-1)
-        return self.address_list[index]
+        check = False
+        address = ()
+        while not check:
+            index = random.randint(0, len(self.address_list)-1)
+            address = self.address_list[index]
+            server = self.select("servers", "*", {"IP": address[0], "port": address[1]})
+            setting = server[0][3]  # עמודת setting (index 3)
+            if setting == "active":
+                check = True
+        return address
 
     #post song
     def add_song(self, song_name, artist):
@@ -150,20 +172,71 @@ class MusicDB(DataBase):
         song = song[0]
         print(song)
         if song is not None:
-            ip1 = song[3]
-            port1 = song[4]
-            set1 = song[5]
-            ip2 = song[6]
-            port2 = song[7]
-            set2 = song[8]
-            if set1 == "verified":
-                return ip1, port1
-            elif set2 == "verified":
-                return ip2, port2
+            address1 = (song[3], int(song[4]))
+            song_set1 = song[5]
+            server1 = self.select("servers", "*", {"IP": address1[0], "port": address1[1]})
+            server_set1 = server1[0][3]  # עמודת setting (index 3)
+
+            address2 = (song[6], int(song[7]))
+            song_set2 = song[8]
+
+            server2 = self.select("servers", "*", {"IP": address2[0], "port": address2[1]})
+            server_set2 = server2[0][3]  # עמודת setting (index 3)
+
+            if song_set1 == "verified" and server_set1 == "active":
+                print(address1)
+                return address1
+            elif song_set2 == "verified" and server_set2 == "active":
+                return address2
             else:
                 return None
         else:
             return None
+
+    def check_server(self, token):
+        try:
+            cmd = "hlo"
+
+            for address in self.address_list:
+                print(type(address[0]))
+                print(type(address[1]))
+                data = [token]
+                server = self.select("servers", "*", {"IP": address[0], "port": address[1]})
+                setting = server[0][3]  # עמודת setting (index 3)
+                with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
+                    try:
+                        s.settimeout(2)  # נניח שאתה רוצה לחכות מקסימום 2 שניות לתגובה
+                        s.connect(address)  # address זה tuple של (host, port)
+
+                        protocol_send(s, cmd, data)
+                        self.logging_protocol("send", cmd, data)
+                        cmd, data = protocol_receive(s)
+                        self.logging_protocol("receive", cmd, data)
+
+                        if data[0] == "True":
+                            if setting != "active":
+                                # עדכון בבסיס הנתונים
+                                self.update("servers", {"setting": "active"}, {"IP": address[0], "port": address[1]})
+                        else:
+                            self.task_log.debug(f"Server {address} responded with unexpected message")
+
+                            if setting != "fallen":
+                                self.update("servers", {"setting": "fallen"}, {"IP": address[0], "port": address[1]})
+
+                    except socket.timeout:
+                        self.task_log.debug(f"Server {address} timed out.")
+                        if setting != "fallen":
+                            self.update("servers", {"setting": "fallen"}, {"IP": address[0], "port": address[1]})
+        except socket.error as e:
+            self.task_log.debug(f"Socket error with server {address}: {e}")
+            if setting != "fallen":
+                self.update("servers", {"setting": "fallen"}, {"IP": address[0], "port": address[1]})
+
+        finally:
+            fallen_servers = self.select("servers", "*", {})
+            self.task_log.debug(fallen_servers)
+
+
 
     def verify(self, token):
         """
@@ -348,6 +421,8 @@ class MusicDB(DataBase):
 
         print(f"✅ השיר {song_id} הוסר מפלייליסט '{playlist_name}' של המשתמש '{username}'.")
         return True
+
+
 
     def get_user_playlists(self, username, playlist_name):
         # שליפת מזהי שירים מהפלייליסט

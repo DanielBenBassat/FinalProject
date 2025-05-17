@@ -215,6 +215,12 @@ def handle_client(client_socket, client_address):
                 if is_worked:
                     logging.debug("song uploaded")
 
+            elif cmd == "hlo":
+                # server checks if server is alive
+                data = ["True"]
+                protocol_send(client_socket, cmd, data)
+                logging_protocol("send", cmd, data)
+
     except socket.error as err:
         print('Socket error on client connection: ' + str(err))
     finally:

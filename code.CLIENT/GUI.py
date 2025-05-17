@@ -367,7 +367,7 @@ class UserInterface:
         else:
             self.client.song_and_playlist("add", "liked_song", song_id)
             like_buttom.config(text="❤")
-        if self.client.expired:
+        if self.client.is_expired:
             messagebox.showerror("error", "token invalid or token has expired")
             self.logout()
     def play_playlist(self, playlist):
@@ -430,7 +430,7 @@ class UserInterface:
             messagebox.showerror("error", msg[1])
         elif msg[0] == "True":
             messagebox.showinfo("good", msg[1])
-        if self.client.expired:
+        if self.client.is_expired:
             messagebox.showerror("error", "token invalid or token has expired")
             self.logout()
 

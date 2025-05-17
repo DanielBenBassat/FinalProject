@@ -47,6 +47,7 @@ def background_task():
     token = generate_token()
     token2 = generate_token()
     while True:
+        db.check_server(token)
         db.verify(token)
         db.backup_songs(token, token2)
         time.sleep(15)
@@ -163,10 +164,9 @@ def handle_client(client_socket, client_address):
                 elif valid.get("valid"):
                     if cmd == "gad":  # [id]
                         song_id = data[1]
-                        result = db.get_address(song_id)
-                        if result:
-                            ip, port = result
-                            data= [ip, port]
+                        address = db.get_address(song_id)
+                        if address:
+                            data = [address[0], address[1]]
                             protocol_send(client_socket, cmd, data)
                         else:
                             data = ["ID not found"]
