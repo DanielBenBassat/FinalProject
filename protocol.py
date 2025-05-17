@@ -2,7 +2,8 @@
 
 def protocol_send(my_socket, cmd, data):
     try:
-        msg = cmd + "!" + str(len(data))
+        #msg = cmd + "!" + str(len(data))
+        msg = cmd + str(len(data))
         #print("send: " + msg)
         msg = msg.encode()
         for i in data:
@@ -23,6 +24,7 @@ def protocol_send(my_socket, cmd, data):
             temp = sign + i_length + "!"
             msg += temp.encode() + encoded_data
 
+
         my_socket.send(msg)
     except Exception as e:  # תפיסת כל סוגי החריגות
         print(f"exception in sending protocol {e}")
@@ -30,16 +32,22 @@ def protocol_send(my_socket, cmd, data):
 
 def protocol_receive(my_socket):
     try:
-        b = my_socket.recv(1).decode()
-        if b != '':
-            cmd = ''
-            while b != '!':
-                cmd += b
-                b = my_socket.recv(1).decode()
+        #b = my_socket.recv(1).decode()
+        #if b != '':
+        #    cmd = ''
+         #   while b != '!':
+         #       cmd += b
+          #      b = my_socket.recv(1).decode()
             #print("cmd: receive " + cmd)
+            cmd = ""
+            while len(cmd) < 3:
+                b = my_socket.recv(1).decode()
+                if b is not None:
+                    cmd += b
+
+            print("cmd: " + cmd)
 
             num_of_items = my_socket.recv(1).decode()
-            #print("num of items: " + num_of_items)
             data = []
             num_of_items = int(num_of_items)
             for i in range(num_of_items):

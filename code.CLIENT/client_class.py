@@ -1,13 +1,12 @@
 import queue
 import socket
 import logging
+import ssl
 from protocol import protocol_send
 from protocol import protocol_receive
 import threading
 import pickle
 import os
-import time
-
 from songs_queue import SongsQueue
 from player import MusicPlayer
 
@@ -20,9 +19,20 @@ LOG_FORMAT = '%(levelname)s | %(asctime)s | %(name)s | %(message)s'
 class Client:
     def __init__(self, ip, port):
         try:
+            # יצירת תיקית לוגים אם לא קיימת
+            if not os.path.isdir(LOG_DIR):
+                os.makedirs(LOG_DIR)
+
+            # אתחול של לוגרים (ריצה בעת יצוא המודול)
+            self.client_log = self.setup_logger("ClientLogger", LOG_FILE_CLIENT)
+            self.player_log = self.setup_logger("PlayerLogger", LOG_FILE_PLAYER)
             # מגדיר את כתובת השרת והסוקט
             self.MAIN_SERVER_ADDR = (ip, port)
-            self.main_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+            context = ssl.SSLContext(ssl.PROTOCOL_TLS_CLIENT)
+            context.check_hostname = False
+            context.verify_mode = ssl.CERT_NONE
+            temp_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+            self.main_socket = context.wrap_socket(temp_socket, server_hostname=ip)
             self.main_socket.connect(self.MAIN_SERVER_ADDR)
 
             # יצירת תורים
@@ -41,13 +51,7 @@ class Client:
             # יצירת Thread לניהול השחקן
             self.player_thread = threading.Thread(target=self.player_func, daemon=True)
 
-            # יצירת תיקית לוגים אם לא קיימת
-            if not os.path.isdir(LOG_DIR):
-                os.makedirs(LOG_DIR)
 
-            # אתחול של לוגרים (ריצה בעת יצוא המודול)
-            self.client_log = self.setup_logger("ClientLogger", LOG_FILE_CLIENT)
-            self.player_log = self.setup_logger("PlayerLogger", LOG_FILE_PLAYER)
 
         except socket.error as e:
             self.client_log.error(f"Socket error: {e}")
@@ -55,7 +59,6 @@ class Client:
         except Exception as e:
             self.client_log.error(f"Error in client initialization: {e}")
             print(f"Error in client initialization: {e}")
-
 
 
     def setup_logger(self, name, log_file):
@@ -175,6 +178,13 @@ class Client:
     def reset(self):
         self.client_log.debug("logout")
         try:
+            if not self.is_expired: # client want to logout
+                cmd = "lgu"
+                data = [self.token]
+                protocol_send(self.main_socket, cmd, data)
+                self.logging_protocol("send", cmd, data)
+
+
             self.q.clear_queue()
             while not self.client_to_gui_queue.empty():
                 temp = self.client_to_gui_queue.get()
@@ -182,7 +192,7 @@ class Client:
             while not self.gui_to_client_queue.empty():
                 temp = self.gui_to_client_queue.get()
 
-
+            self.p = MusicPlayer()
             self.username = ""
             self.token = ""
             self.song_id_dict = {}

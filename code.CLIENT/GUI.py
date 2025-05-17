@@ -34,23 +34,15 @@ class UserInterface:
         self.show_frame("welcome")
         self.root.protocol("WM_DELETE_WINDOW", self.closing)  # <- כאן זה קורה
 
-
-
-
-
-
     def logout(self):
-
         self.client.gui_to_client_queue.put("stop")
         self.client.reset()
         self.show_frame("welcome")
-
 
     def closing(self):
         try:
             print("closing")
             self.client.gui_to_client_queue.put("shutdown")
-            print("shot")
             self.client.exit()
 
             time.sleep(0.1)
@@ -66,8 +58,6 @@ class UserInterface:
             if os.path.exists(self.client.q.recent_song_path) and self.client.q.recent_song_path != "":
                 time.sleep(0.1)
                 os.remove(self.client.q.recent_song_path)
-
-
         except Exception as e:
             print(e)
         finally:

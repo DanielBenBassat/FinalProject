@@ -180,6 +180,24 @@ def handle_client(client_socket, client_address):
                 protocol_send(client_socket, "pst", val)
                 logging_protocol("send", cmd, data)
 
+            elif cmd == "hlo":
+                # server checks if server is alive
+                data = ["True"]
+                protocol_send(client_socket, cmd, data)
+                logging_protocol("send", cmd, data)
+
+            elif cmd == "vrf":
+                # [token, song_id]
+                # main server asks if the file is exists
+                song_name = str(data[1])
+                song_path = os.path.join(FOLDER, f"{song_name}.mp3")
+                if os.path.exists(song_path):
+                    data = ["found"]
+                else:
+                    data = ["lost"]
+                protocol_send(client_socket, cmd, data)
+                logging_protocol("send", cmd, data)
+
             elif cmd == "bkg":
                 # [token, id, ip, port]
                 # main server tells you to send a file to another media server
@@ -195,17 +213,7 @@ def handle_client(client_socket, client_address):
                 except Exception as e:
                     logging.debug(f"Failed to connect to secondary server: {e}")
 
-            elif cmd == "vrf":
-                # [token, song_id]
-                # main server asks if the file is exists
-                song_name = str(data[1])
-                song_path = os.path.join(FOLDER, f"{song_name}.mp3")
-                if os.path.exists(song_path):
-                    data = ["found"]
-                else:
-                    data = ["lost"]
-                protocol_send(client_socket, cmd, data)
-                logging_protocol("send", cmd, data)
+
 
             elif cmd == "bkp":
                 # cmd from server to save a file and backup a song
@@ -215,11 +223,7 @@ def handle_client(client_socket, client_address):
                 if is_worked:
                     logging.debug("song uploaded")
 
-            elif cmd == "hlo":
-                # server checks if server is alive
-                data = ["True"]
-                protocol_send(client_socket, cmd, data)
-                logging_protocol("send", cmd, data)
+
 
     except socket.error as err:
         print('Socket error on client connection: ' + str(err))

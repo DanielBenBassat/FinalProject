@@ -9,8 +9,10 @@ from music_db import MusicDB
 import time
 import jwt
 import datetime
+import ssl
 
-
+CERT_FILE = "C:/work/cyber/FinalProject/code.MAIN_SERVER/certificate_main.crt"
+KEY_FILE = "C:/work/cyber/FinalProject/code.MAIN_SERVER/privatekey_main.key"
 IP = "127.0.0.1"
 PORT = 5555
 CLIENTS_SOCKETS = []
@@ -62,7 +64,7 @@ def generate_token():
              - 'iat': Token creation time (current UTC time)
     """
     payload = {
-        "exp": datetime.datetime.utcnow() + datetime.timedelta(minutes= 50),  # תוקף לשעה
+        "exp": datetime.datetime.utcnow() + datetime.timedelta(seconds=1),  # תוקף לשעה
         "iat": datetime.datetime.utcnow(),  # זמן יצירה
     }
     token = jwt.encode(payload, SECRET_KEY, algorithm="HS256")
@@ -140,7 +142,7 @@ def log_signup(db, client_socket):
     return val
 
 
-def handle_client(client_socket, client_address):
+def handle_client(client_socket):
     try:
         db = MusicDB("my_db.db", ADDRESS_LIST)
         temp = log_signup(db, client_socket)
@@ -151,8 +153,6 @@ def handle_client(client_socket, client_address):
                 cmd, data = protocol_receive(client_socket)
 
                 logging_protocol("receive", cmd, data)
-                if cmd == "error":
-                    break
                 token = data[0]
                 valid = verify_token(token)
                 if not valid.get("valid"):
@@ -180,15 +180,14 @@ def handle_client(client_socket, client_address):
                         protocol_send(client_socket, cmd, data)
                         logging_protocol("send", cmd, data)
 
-                    elif cmd == "rfs": # [token]
+                    elif cmd == "rfs":  # [token]
                         song_list = db.all_songs()
                         song_list = pickle.dumps(song_list)
                         data = ["True", song_list]
                         protocol_send(client_socket, cmd, data)
                         logging_protocol("send", cmd, data)
 
-
-                    elif cmd == "atp": #add to playlist
+                    elif cmd == "atp":  # add to playlist
                         username = data[1]
                         playlist_name = data[2]
                         song_id = data[3]
@@ -197,7 +196,7 @@ def handle_client(client_socket, client_address):
                         protocol_send(client_socket, cmd, data)
                         logging_protocol("send", cmd, data)
 
-                    elif cmd == "rfp": #remove from playlist
+                    elif cmd == "rfp":  # remove from playlist
                         username = data[1]
                         playlist_name = data[2]
                         song_id = data[3]
@@ -205,6 +204,9 @@ def handle_client(client_socket, client_address):
                         data = [check]
                         protocol_send(client_socket, cmd, data)
                         logging_protocol("send", cmd, data)
+
+                    elif cmd == "lgu":
+                        log_signup(db, client_socket)
 
                     elif cmd == "ext" or cmd == "error":
                         print("EXT command received, breaking loop.")
@@ -223,6 +225,8 @@ def handle_client(client_socket, client_address):
 
 
 def main():
+    context = ssl.SSLContext(ssl.PROTOCOL_TLS_SERVER)
+    context.load_cert_chain(certfile=CERT_FILE, keyfile=KEY_FILE)
     server = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
     try:
         server.bind((IP, PORT))
@@ -230,8 +234,10 @@ def main():
         while True:
             try:
                 client_socket, client_address = server.accept()
-                CLIENTS_SOCKETS.append(client_socket)
-                thread = threading.Thread(target=handle_client, args=([client_socket, client_address]))
+                ssl_client_socket = context.wrap_socket(client_socket, server_side=True)
+
+                CLIENTS_SOCKETS.append(ssl_client_socket)
+                thread = threading.Thread(target=handle_client, args=(ssl_client_socket,))
                 THREADS.append(thread)
                 thread.start()
                 logging.debug(f"[ACTIVE CONNECTIONS] {threading.active_count() - 2}")
@@ -250,6 +256,6 @@ if __name__ == "__main__":
         os.makedirs(LOG_DIR)
     logging.basicConfig(format=LOG_FORMAT, filename=LOG_FILE, level=LOG_LEVEL)
 
-    thread = threading.Thread(target=background_task, daemon=True)
-    thread.start()
+    background_thread = threading.Thread(target=background_task, daemon=True)
+    background_thread.start()
     main()
