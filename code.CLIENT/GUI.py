@@ -133,9 +133,9 @@ class UserInterface:
         hashed_password = hashlib.sha256(password.encode()).hexdigest()
 
         data = client.start_client("2", username, hashed_password)
-        if data[0] == "True":
+        if data[0] == "T":
             self.show_frame("home")
-        if data[0] == "False":
+        if data[0] == "F":
             messagebox.showerror("error", "details are wrong")
 
 
@@ -181,13 +181,14 @@ class UserInterface:
 
             # כאן אפשר להוסיף קוד להירשם למערכת ולעבור למסך הבא
             data = client.start_client("1", username, hashed_password)
-            if data[0] == "True":
+            if data[0] == "T":
                 self.show_frame("home")
-            elif data[0] == "False":
+            elif data[0] == "F":
                 messagebox.showerror("error", "username already exist")
         else:
             messagebox.showerror("error", "Passwords do not match!")
             # אפשר להוסיף הודעת שגיאה למשתמש במקרה של חוסר התאמה
+
     def create_music_player_bar(self, main_frame):
         music_player = tk.Frame(main_frame, bg="blue", height=60)
         music_player.pack(side="bottom", fill="x")
@@ -414,11 +415,11 @@ class UserInterface:
         print("Artist Name:", artist_name)
         print("Song File Path:", song_path)
 
-        msg = client.add_song(song_name, artist_name, song_path)
+        msg = client.upload_song(song_name, artist_name, song_path)
         print(msg)
-        if msg[0] == "False":
+        if msg[0] == "F":
             messagebox.showerror("error", msg[1])
-        elif msg[0] == "True":
+        elif msg[0] == "T":
             messagebox.showinfo("good", msg[1])
         if self.client.is_expired:
             messagebox.showerror("error", "token invalid or token has expired")

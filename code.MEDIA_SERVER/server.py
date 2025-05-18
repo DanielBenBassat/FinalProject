@@ -80,19 +80,19 @@ def send_song(cmd, client_socket, song_name, token=""):
 
         if cmd == "bkp":
             # sending the song to server
-            data = [token, song_name, song_bytes]
+            data = ["T", token, song_name, song_bytes]
         elif cmd == "get":
             # sending the song to client
-            data = [song_name2, song_bytes]
+            data = ["T", song_name2, song_bytes]
 
     except FileNotFoundError:
         logging.debug("File not found (unexpected error):", song_name)
-        data = ["error", "file not found"]
+        data = ["F", "file not found"]
     except OSError as e:
         logging.debug(f"OS error while sending {song_name}: {e}")
-        data = ["error", f"{str(e)}"]
+        data = ["F", "OS error"]
     except Exception as e:
-        data = ["error", f": {str(e)}"]
+        data = ["F", "Unexpected error"]
         logging.debug(f"Unexpected error while sending {song_name}: {e}")
     finally:
         protocol_send(client_socket, cmd, data)
@@ -174,10 +174,10 @@ def handle_client(client_socket, client_address):
                 song_bytes = data[2]
                 is_worked = add_song(song_bytes, song_name)
                 if is_worked:
-                    val = ["True", "post song succeeded"]
+                    data = ["T", "post song succeeded"]
                 else:
-                    val = ["False", "post song failed"]
-                protocol_send(client_socket, "pst", val)
+                    data = ["F", "post song failed"]
+                protocol_send(client_socket, cmd, data)
                 logging_protocol("send", cmd, data)
 
             elif cmd == "hlo":

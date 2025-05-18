@@ -64,7 +64,7 @@ def generate_token():
              - 'iat': Token creation time (current UTC time)
     """
     payload = {
-        "exp": datetime.datetime.utcnow() + datetime.timedelta(seconds=1),  # תוקף לשעה
+        "exp": datetime.datetime.utcnow() + datetime.timedelta(hours=1),  # תוקף לשעה
         "iat": datetime.datetime.utcnow(),  # זמן יצירה
     }
     token = jwt.encode(payload, SECRET_KEY, algorithm="HS256")
@@ -87,7 +87,7 @@ def verify_token(token):
         return {"valid": False, "error": "Invalid token"}
 
 
-def log_signup(db, client_socket):
+def login_signup(db, client_socket):
     logging.debug("back to waiting for log")
     songs_dict = db.all_songs()
     songs_dict = pickle.dumps(songs_dict)
@@ -107,10 +107,10 @@ def log_signup(db, client_socket):
 
                 cmd = "sig"
                 if check:
-                    data = ["True", token, songs_dict]
+                    data = ["T", token, songs_dict]
                     temp = False
                 else:
-                    data = ["False", "existing"]
+                    data = ["F", "existing"]
                 protocol_send(client_socket, cmd, data)
                 logging_protocol("send", cmd, data)
 
@@ -121,16 +121,16 @@ def log_signup(db, client_socket):
                 cmd = "log"
                 if not val:
                     if problem == "username":
-                        data = ["False", "username"]
+                        data = ["F", "username"]
                         protocol_send(client_socket, cmd, data)
                     elif problem == "password":
-                        data = ["False", "password"]
+                        data = ["", "password"]
                         protocol_send(client_socket, cmd, data)
                 elif val:
                     temp = False
                     liked_song = db.get_user_playlists(username, "liked_song")
                     liked_song = pickle.dumps(liked_song)
-                    data = ["True", token, songs_dict, liked_song]
+                    data = ["T", token, songs_dict, liked_song]
                     protocol_send(client_socket, cmd, data)
                 logging_protocol("send", cmd, data)
 
@@ -145,31 +145,32 @@ def log_signup(db, client_socket):
 def handle_client(client_socket):
     try:
         db = MusicDB("my_db.db", ADDRESS_LIST)
-        temp = log_signup(db, client_socket)
+        temp = login_signup(db, client_socket)
 
         while temp:
             try:
                 print("waiting for cmd")
                 cmd, data = protocol_receive(client_socket)
-
                 logging_protocol("receive", cmd, data)
+
                 token = data[0]
                 valid = verify_token(token)
                 if not valid.get("valid"):
                     error = valid.get("error")
-                    data = ["false", error]
+                    data = ["F", error]
                     protocol_send(client_socket, cmd, data)
                     logging_protocol("send", cmd, data)
-                    log_signup(db, client_socket)
+                    login_signup(db, client_socket)
+
                 elif valid.get("valid"):
                     if cmd == "gad":  # [id]
                         song_id = data[1]
                         address = db.get_address(song_id)
                         if address:
-                            data = [address[0], address[1]]
+                            data = ["T", address[0], address[1]]
                             protocol_send(client_socket, cmd, data)
                         else:
-                            data = ["ID not found"]
+                            data = ["F", "ID not found"]
                             protocol_send(client_socket, cmd, data)
                         logging_protocol("send", cmd, data)
 
@@ -206,7 +207,7 @@ def handle_client(client_socket):
                         logging_protocol("send", cmd, data)
 
                     elif cmd == "lgu":
-                        log_signup(db, client_socket)
+                        login_signup(db, client_socket)
 
                     elif cmd == "ext" or cmd == "error":
                         print("EXT command received, breaking loop.")

@@ -57,9 +57,6 @@ class MusicDB(DataBase):
         self.task_log = self.setup_logger("TaskLogger", LOG_FILE_TASK)
         self.music_db_log = self.setup_logger("dbLogger", LOG_FILE_DB)
 
-
-
-
     def insert_server_columns(self):
         for server in self.address_list:
             data = {"IP": server[0], "port": server[1], "setting": "pending" }
@@ -101,7 +98,6 @@ class MusicDB(DataBase):
         self.insert("users", {"username": username, "password": password})
         return True
 
-
     #login
     def verified_user(self, username, password):
         """
@@ -120,14 +116,17 @@ class MusicDB(DataBase):
             return False, "username"
 
     def all_songs(self):
-        dict = {}
-        songs = self.select("songs", 'id,name,artist', {"setting1": "verified"})
+        song_dict = {}
+        songs = self.select("songs", 'id,name,artist', {"setting1": "verified", "setting2": "verified"}, "OR")
         for i in songs:
             name = i[1]
             artist = i[2]
             id = i[0]
-            dict[name] = (artist, id)
-        return dict
+            song_dict[name] = (artist, id)
+        return song_dict
+
+
+
 
     def find_address(self):
         check = False
@@ -143,13 +142,11 @@ class MusicDB(DataBase):
 
     #post song
     def add_song(self, song_name, artist):
-    # בדיקה אם השיר כבר קיים במסד הנתונים
         existing = self.select("songs", "*", {"name": song_name, "artist": artist})
         if existing:
             print("שיר כבר קיים:", existing)
-            return ["False", "existing"]  # או שתחזיר את ה-ID הקיים אם אתה רוצה להשתמש בו
+            return ["F", "existing"]
 
-        # המשך רגיל אם השיר לא קיים
         data = {"name": song_name, "artist": artist}
         address = self.find_address()
         ip = address[0]
@@ -162,7 +159,7 @@ class MusicDB(DataBase):
         song_id = self.select("songs", "id", {"name": song_name, "artist": artist})
         print(song_id)
         song_id = str(song_id[0][0])
-        return ["True", song_id, ip, port]
+        return ["T", song_id, ip, port]
 
 
 

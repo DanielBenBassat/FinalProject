@@ -18,15 +18,19 @@ LOG_FORMAT = '%(levelname)s | %(asctime)s | %(name)s | %(message)s'
 
 class Client:
     def __init__(self, ip, port):
+        """
+        Initialize the Client object.
+
+        :param ip: str, the IP address of the main server
+        :param port: int, the port number of the main server
+        """
         try:
-            # יצירת תיקית לוגים אם לא קיימת
             if not os.path.isdir(LOG_DIR):
                 os.makedirs(LOG_DIR)
 
-            # אתחול של לוגרים (ריצה בעת יצוא המודול)
             self.client_log = self.setup_logger("ClientLogger", LOG_FILE_CLIENT)
             self.player_log = self.setup_logger("PlayerLogger", LOG_FILE_PLAYER)
-            # מגדיר את כתובת השרת והסוקט
+
             self.MAIN_SERVER_ADDR = (ip, port)
             context = ssl.SSLContext(ssl.PROTOCOL_TLS_CLIENT)
             context.check_hostname = False
@@ -35,59 +39,392 @@ class Client:
             self.main_socket = context.wrap_socket(temp_socket, server_hostname=ip)
             self.main_socket.connect(self.MAIN_SERVER_ADDR)
 
-            # יצירת תורים
             self.q = SongsQueue()
             self.p = MusicPlayer()
             self.client_to_gui_queue = queue.Queue()
             self.gui_to_client_queue = queue.Queue()
 
-            # אתחול משתנים
             self.username = ""
             self.token = ""
             self.song_id_dict = {}
             self.liked_song = []
             self.is_expired = True
 
-            # יצירת Thread לניהול השחקן
             self.player_thread = threading.Thread(target=self.player_func, daemon=True)
 
-
-
         except socket.error as e:
-            self.client_log.error(f"Socket error: {e}")
-            print(f"Socket error: {e}")
+            # If logging is not yet set, fallback to print
+            if hasattr(self, 'client_log'):
+                self.client_log.error(f"Socket error: {e}")
+            else:
+                print(f"Socket error: {e}")
         except Exception as e:
-            self.client_log.error(f"Error in client initialization: {e}")
-            print(f"Error in client initialization: {e}")
-
+            if hasattr(self, 'client_log'):
+                self.client_log.error(f"Error in client initialization: {e}")
+            else:
+                print(f"Error in client initialization: {e}")
 
     def setup_logger(self, name, log_file):
-        """Set up a logger that logs to a specific file"""
-        logger = logging.getLogger(name)
-        logger.setLevel(logging.DEBUG)
+        """
+        Set up a logger that logs to a specific file.
 
-        file_handler = logging.FileHandler(log_file)
-        file_handler.setLevel(logging.DEBUG)
+        :param name: str, logger name
+        :param log_file: str, path to the log file
+        :return: logger object
+        """
+        try:
+            logger = logging.getLogger(name)
+            logger.setLevel(logging.DEBUG)
 
-        formatter = logging.Formatter(LOG_FORMAT)
-        file_handler.setFormatter(formatter)
+            file_handler = logging.FileHandler(log_file)
+            file_handler.setLevel(logging.DEBUG)
+            formatter = logging.Formatter(LOG_FORMAT)
+            file_handler.setFormatter(formatter)
+            logger.addHandler(file_handler)
+            return logger
 
-        logger.addHandler(file_handler)
-
-        return logger
-
-
-
+        except Exception as e:
+            print(f"Failed to setup logger {name}: {e}")
+            return None
 
     def logging_protocol(self, func, cmd, data):
+        """
+        Log the protocol messages with the command and data.
+
+        :param func: str, action type ("send" or "receive")
+        :param cmd: str, command sent or received
+        :param data: list, data associated with the command
+        """
         try:
-            msg = func + " : " + cmd
+            msg = f"{func} : {cmd}"
             for i in data:
-                if type(i) is not bytes:
+                if not isinstance(i, bytes):
                     msg += ", " + str(i)
-            self.client_log.debug(msg)
-        except Exception as e:  # תפיסת כל סוגי החריגות
-            self.client_log.debug(e)
+            if self.client_log:
+                self.client_log.debug(msg)
+            else:
+                print(msg)
+
+        except Exception as e:
+            if self.client_log:
+                self.client_log.debug(f"Logging protocol error: {e}")
+            else:
+                print(f"Logging protocol error: {e}")
+
+    def start_client(self, cmd, username, password):
+        """
+        Starts the client login or signup process with the main server.
+
+        Depending on the command, this method sends a signup or login request
+        to the main server using the provided username and password. If the
+        response from the server is successful (indicated by "T"), the client's
+        session is initialized with the username, authentication token, and
+        song data.
+
+        Additionally, the method ensures that the player thread is running
+        (starts it if not already alive) so that the client can handle music playback.
+
+        Parameters:
+            cmd (str): Command indicating the action. "1" for signup, "2" for login.
+            username (str): The username to sign up or log in with.
+            password (str): The corresponding password.
+
+        Returns:
+            list: The response data from the server (e.g., ["T", token, ...] or ["F", reason]).
+        """
+        data = ["N"]
+        try:
+            if cmd == "1":
+                cmd = "sig"
+                data = [username, password]
+                protocol_send(self.main_socket, cmd, data)
+                self.logging_protocol("send", cmd, data)
+                cmd, data = protocol_receive(self.main_socket)
+                self.logging_protocol("received", cmd, data)
+                if data[0] == "T":
+                    self.username = username
+                    self.token = data[1]
+                    self.is_expired = False
+                    self.song_id_dict = pickle.loads(data[2])
+
+            elif cmd == "2":
+                cmd = "log"
+                data = [username, password]
+                protocol_send(self.main_socket, cmd, data)
+                self.logging_protocol("send", cmd, data)
+                cmd, data = protocol_receive(self.main_socket)
+                self.logging_protocol("received", cmd, data)
+                if data[0] == "T":
+                    self.username = username
+                    self.token = data[1]
+                    self.is_expired = False
+                    self.song_id_dict = pickle.loads(data[2])
+                    print(self.song_id_dict)
+                    self.liked_song = pickle.loads(data[3])
+                    print("liked song")
+                    print(self.liked_song)
+
+            if cmd in ("log", "sig") and data[0] == "T":
+                print("pt1")
+                if not self.player_thread.is_alive():
+                    print("pt2")
+                    self.player_thread.start()
+
+        except (ConnectionError, OSError) as net_err:
+            self.client_log.debug(f"[ERROR] Network error: {net_err}")
+            data = ["F", "Network error"]
+
+        except pickle.PickleError as pickle_err:
+            self.client_log.debug(f"[ERROR] Data decoding error: {pickle_err}")
+            data = ["F", "Data decoding error"]
+
+        except Exception as e:
+            self.client_log.debug(f"[ERROR] Unexpected error: {e}")
+            data = ["F", "Unexpected error"]
+        finally:
+            return data
+
+    def listen_song(self, song_id):
+        """
+        Attempts to play a song by ID. If the song exists locally, it is added to the playback queue.
+        Otherwise, it fetches the media server address, downloads the song, and adds it to the queue.
+
+        :param song_id: The ID of the song to listen to.
+        """
+        try:
+            file_path = os.path.join(f"{song_id}.mp3")
+            if os.path.exists(file_path):
+                self.q.add_to_queue(file_path)
+                self.client_log.debug(f"{file_path} was added to queue (local file)")
+                return
+
+            # Request address of the media server hosting the song
+            data = self.get_address(song_id)
+            if data[0] == "T":
+                ip = data[1]
+                port = int(data[2])
+                media_server_address = (ip, port)
+
+                # Attempt to get the song from the media server
+                file_name = self.get_song(song_id, media_server_address)
+                if file_name != "error":
+                    self.q.add_to_queue(file_name)
+                    self.client_log.debug(f"{file_name} was added to queue (downloaded)")
+                else:
+                    self.client_log.error(f"Failed to download song {song_id} from {media_server_address}")
+            else:
+                self.client_log.error(f"Could not get address for song {song_id}: {data}")
+        except Exception as e:
+            self.client_log.error(f"Unexpected error in listen_song: {e}")
+
+    def get_address(self, song_id):
+        """
+        Sends the main server a song ID and receives the address of the media server that hosts the song.
+
+        :param song_id: int - The ID of the requested song.
+        :return: tuple - Response from the server, e.g. ("T", ip, port) on success, or ("F", error_message) on failure.
+        """
+        try:
+            cmd = "gad"
+            data = [self.token, song_id]
+            protocol_send(self.main_socket, cmd, data)
+            self.logging_protocol("send", cmd, data)
+
+            cmd, data = protocol_receive(self.main_socket)
+            self.logging_protocol("received", cmd, data)
+
+            if data[0] == "F":
+                if data[1] in ("Token has expired", "Invalid token"):
+                    self.is_expired = True
+            return data
+
+        except Exception as e:
+            self.client_log.error(f"Error in get_address for song_id {song_id}: {e}")
+            # מחזיר תגובה שמדגימה כישלון כדי שהקריאה בפונקציה שמעבירה את התוצאה תוכל לטפל בזה
+            return ["F", f"Exception occurred: {str(e)}"]
+
+    def get_song(self, song_id, server_address):
+        """
+        Requests the song file from the given media server address and saves it locally.
+
+        :param song_id: int - The ID of the requested song.
+        :param server_address: tuple(str, int) - The IP address and port of the media server.
+        :return: str - The filename if the song was successfully downloaded and saved,
+                       or "error" if there was a failure.
+        """
+        file_name = "error"
+        try:
+            media_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+            media_socket.connect(server_address)
+            self.client_log.debug(f"Connection with media server {server_address} successful!")
+
+            cmd = "get"
+            data = [self.token, song_id]
+            protocol_send(media_socket, cmd, data)
+            self.logging_protocol("send", cmd, data)
+
+            cmd, data = protocol_receive(media_socket)
+            self.logging_protocol("received", cmd, data)
+            media_socket.close()
+
+            if data[0] == "F":
+                if data[1] in ("Token has expired", "Invalid token"):
+                    self.is_expired = True
+                self.client_log.warning(f"Failed to get song: {data[1]}")
+            else:
+                file_name = data[1]
+                if file_name != "not found":
+                    with open(file_name, 'wb') as file:
+                        file.write(data[2])
+                    self.client_log.debug(f"File saved as {file_name}")
+                else:
+                    self.client_log.warning(f"Song with ID {song_id} not found on media server.")
+
+        except socket.error as e:
+            self.client_log.error(f"Socket error while connecting to media server {server_address}: {e}")
+
+        except Exception as e:
+            self.client_log.error(f"Unexpected error in get_song: {e}")
+
+        finally:
+            return file_name
+
+    def upload_song(self, song_name, artist, file_path):
+        """
+        Upload a song to the appropriate media server.
+
+        This function checks if the provided file exists, requests a media server address
+        from the main server to upload the song, and sends the song file to that media server.
+
+        :param song_name: str - the name of the song
+        :param artist: str - the artist of the song
+        :param file_path: str - path to the local song file
+        :return: list - response indicating success or failure, e.g. ["T"] or ["F", "reason"]
+        """
+        try:
+            if not os.path.isfile(file_path):
+                return ["F", "file does not exist"]
+
+            # Get media server address for the new song
+            data = self.get_address_new_song(song_name, artist)
+            if data[0] == "T":
+                song_id = int(data[1])
+                ip = data[2]
+                port = int(data[3])
+                media_server_address = (ip, port)
+
+                post_song_result = self.post_song(file_path, song_id, media_server_address)
+                return post_song_result
+            else:
+                self.client_log.debug(f"Failed to get media server address: {data}")
+                return data
+
+        except Exception as e:
+            self.client_log.error(f"Exception during upload_song: {e}")
+            return ["F", "exception occurred"]
+
+    def get_address_new_song(self, song_name, artist):
+        """
+        Requests a unique song ID and the address of a media server
+        for uploading a new song to the system.
+
+        :param song_name: str - name of the new song
+        :param artist: str - name of the artist
+        :return: list - server response, e.g. ["T", id, ip, port] or ["F", reason]
+        """
+        try:
+            cmd = "pad"
+            data = [self.token, song_name, artist]
+
+            protocol_send(self.main_socket, cmd, data)
+            self.logging_protocol("send", cmd, data)
+
+            cmd, data = protocol_receive(self.main_socket)  # e.g., "pad", ["T", id, ip, port]
+            self.logging_protocol("received", cmd, data)
+
+            if data[0] == "F":
+                if data[1] in ("Token has expired", "Invalid token"):
+                    self.is_expired = True
+                self.client_log.debug(f"Failed to get upload address: {data}")
+            return data
+
+        except Exception as e:
+            self.client_log.error(f"Exception in get_address_new_song: {e}")
+            return ["F", "exception occurred"]
+
+    def post_song(self, file_path, id, server_address):
+        """
+        Uploads a song file to the specified media server.
+
+        :param file_path: str - full path to the song file
+        :param id: int - unique song ID assigned by the main server
+        :param server_address: tuple(str, int) - (IP, port) of the target media server
+        :return: list - server response, e.g. ["T"] for success or ["F", reason] on failure
+        """
+        result = ["F", "error"]
+        try:
+            # Try connecting to media server
+            media_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+            media_socket.connect(server_address)
+            self.client_log.debug("Connection with media server successful!")
+
+            # Try reading the song file
+            try:
+                with open(file_path, "rb") as file:
+                    song_bytes = file.read()
+                    self.client_log.debug(f"Read {len(song_bytes)} bytes from song file.")
+            except Exception as file_err:
+                self.client_log.error(f"Failed to read song file: {file_err}")
+                return ["F", "file read error"]
+
+            # Send upload command
+            cmd = "pst"
+            data = [self.token, id, song_bytes]
+            protocol_send(media_socket, cmd, data)
+            self.logging_protocol("send", cmd, data)
+
+            # Receive response
+            cmd, data = protocol_receive(media_socket)
+            self.logging_protocol("received", cmd, data)
+            result = data
+
+            # Check for token-related errors
+            if data[0] == "F" and data[1] in ("Token has expired", "Invalid token"):
+                self.is_expired = True
+
+            media_socket.close()
+
+        except socket.error as e:
+            self.client_log.error(f"Connection to media server failed: {e}")
+            result = ["F", "error connection"]
+
+        except Exception as e:
+            self.client_log.error(f"Unexpected error during post_song: {e}")
+            result = ["F", "unexpected error"]
+
+        finally:
+            return result
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
     def logout(self):
         self.q = SongsQueue()
@@ -123,11 +460,13 @@ class Client:
 
                 cmd, data = protocol_receive(self.main_socket)
                 self.logging_protocol("received", cmd, data)
-                if data[0] == "Token has expired" or data[0] == "Invalid token":
-                    self.is_expired = True
-                    return 'Token has expired'
+                if data[0] == "F":
+                    if data[1] == "Token has expired" or data[1] == "Invalid token":
+                        self.is_expired = True
+                        return data[1]
                 if data[0] == 'True':
                     self.liked_song.append(song_id)
+
             elif cmd == "remove":
                 cmd = "rfp"
                 data = [self.token, self.username, playlist_name, song_id]
@@ -136,9 +475,10 @@ class Client:
 
                 cmd, data = protocol_receive(self.main_socket)
                 self.logging_protocol("received", cmd, data)
-                if data[0] == "Token has expired" or data[0] == "Invalid token":
-                    self.is_expired = True
-                    return 'Token has expired'
+                if data[0] == "F":
+                    if data[1] == "Token has expired" or data[1] == "Invalid token":
+                        self.is_expired = True
+                        return data
                 if data[0] == 'True':
                     self.liked_song.remove(song_id)
         except Exception as e:
@@ -184,7 +524,6 @@ class Client:
                 protocol_send(self.main_socket, cmd, data)
                 self.logging_protocol("send", cmd, data)
 
-
             self.q.clear_queue()
             while not self.client_to_gui_queue.empty():
                 temp = self.client_to_gui_queue.get()
@@ -202,213 +541,32 @@ class Client:
             self.client_log.debug(f"Error closing socket: {e}")
 
 
-    def get_address(self, song_id):
-        """
-        sends the main server a song id and receive an address of the media server that has the song
-        :param song_id: int
-        :return: address of the media server that has the required song
-        """
-        cmd = "gad"
-        data = [self.token, song_id]
-        protocol_send(self.main_socket, cmd, data)
-        self.logging_protocol("send", cmd, data)
-
-        cmd, data = protocol_receive(self.main_socket)
-        self.logging_protocol("received", cmd, data)
-        if data[1] == "Token has expired" or data[1] == "Invalid token":
-            self.is_expired = True
-            return 'Token has expired'
-
-        ip = data[0]
-        port = int(data[1])
-        address = (ip, port)
-        return address
 
 
-    def get_song(self, song_id, server_address):
-        """
-
-        :param song_id: int
-        :param server_address: tuple of ip(str) and port(int)
-        :return:
-        """
-        file_name = "error"
-        try:
-            media_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-            media_socket.connect(server_address)
-            self.client_log.debug("Connection with media server successful!")
-
-            cmd = "get"
-            data = [self.token, song_id]
-            protocol_send(media_socket, cmd, data)
-            self.logging_protocol("send", cmd, data)
-
-            cmd, data = protocol_receive(media_socket)
-            self.logging_protocol("received", cmd, data)
-            media_socket.close()
-            if data[0] == "Token has expired" or data[0] == "Invalid token":
-                self.is_expired = True
-                file_name = "Invalid token"
-            else:
-
-                file_name = data[0]
-                if file_name != "not found":
-                    with open(file_name, 'wb') as file:
-                        file.write(data[1])
-                    self.client_log.debug(f"File saved as {file_name}")
-
-        except socket.error as e:
-            self.client_log.debug(f"Connection failed: {e}")
-
-        finally:
-            return file_name
 
 
-    def listen_song(self, song_id):
 
-        file_path = os.path.join(str(song_id) + '.mp3')
 
-        if os.path.exists(file_path):
-            self.q.add_to_queue(file_path)
-            self.client_log.debug(file_path + " was added to queue")
-            return 'good'
 
-        media_server_address = self.get_address(song_id)
-        if media_server_address == 'Token has expired':
 
-            return 'Token has expired'
-        else:
-            file_name = self.get_song(song_id, media_server_address)
-            if file_name == "error":
-                return "error"
-            elif file_name == "Invalid token":
-                return "Invalid token"
-            self.q.add_to_queue(file_name)
-            self.client_log.debug(file_name + " was added to queue")
-            return 'good'
+
+
     def play_playlist(self, playlist):
         self.q.clear_queue()
         self.p.stop_song()
         for song in playlist:
             self.listen_song(song)
-    def add_song(self, song_name, artist, file_path):
-        if os.path.isfile(file_path):
-            data = self.get_address_new_song(song_name, artist)
-            if data[0] == "False":
-                return data
-            else:
-                song_id = data[0]
-                media_server_address = data[1]
-                val = self.post_song(file_path, song_id, media_server_address)
-                return val
-
-        else:
-            return ["False", "file does not exist"]
-    def get_address_new_song(self, song_name, artist):
-        """
-        gets an id and a server address for adding new song
-        :param song_name: str
-        :param artist: str
-        :return:
-        """
-        cmd = "pad"
-        data = [self.token, song_name, artist]
-        protocol_send(self.main_socket, cmd, data)
-        self.logging_protocol("send", cmd, data)
-
-        cmd, data = protocol_receive(self.main_socket) # "pad", [id, ip, port]
-        self.logging_protocol("received", cmd, data)
-        if data[0] == "Invalid token" or data[0] == "Token has expired" or data[0] == "error":
-            self.is_expired = True
-            return data
-        else:
-            song_id = int(data[1])
-            ip = data[2]
-            port = int(data[3])
-            address = (ip, port)
-            return [song_id, address]
 
 
-    def post_song(self, file_path, id, server_address):
-        """
-
-        :param file_path: str
-        :param id: int
-        :param server_address: tuple of ip(str) and port(int)
-        :return:
-        """
-        val = "error"
-        try:
-            media_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-            media_socket.connect(server_address)
-            self.client_log.debug("Connection with media server successful!")
-            with open(file_path, "rb") as file:
-                song_bytes = file.read()
-                print(len(song_bytes))
-
-            cmd = "pst"
-            data = [self.token, id, song_bytes]
-            protocol_send(media_socket, cmd, data)
-            self.logging_protocol("send", cmd, data)
-
-            cmd, data = protocol_receive(media_socket)
-            self.logging_protocol("received", cmd, data)
-            if data[0] == "Invalid token" or data[0] == "Token is expired":
-                self.is_expired = True
-                val = data
-            else:
-                val = data
-                media_socket.close()
-
-        except socket.error as e:
-            self.client_log.debug(f"Connection failed: {e}")
-            val = ["False", "error connection"]
-        finally:
-            return val
-
-    def start_client(self, cmd, username, password): # cmd =1 sign up cmd =2 login
-        if cmd == "1":
-            cmd = "sig"
-            data = [username, password]
-            protocol_send(self.main_socket, cmd, data)
-            self.logging_protocol("send", cmd, data)
-            cmd, data = protocol_receive(self.main_socket)
-            self.logging_protocol("received", cmd, data)
-            if data[0] == "True":
-                self.username = username
-                self.token = data[1]
-                self.is_expired = False
-                self.song_id_dict = pickle.loads(data[2])
-                #if not self.player_thread.is_alive():
-                  #  self.player_thread.start()
 
 
-        elif cmd == "2":
-            cmd = "log"
-            data = [username, password]
-            protocol_send(self.main_socket, cmd, data)
-            self.logging_protocol("send", cmd, data)
-            cmd, data = protocol_receive(self.main_socket)
-            self.logging_protocol("received", cmd, data)
-            if data[0] == "True":
-                self.username = username
-                self.token = data[1]
-                self.is_expired = False
-                self.song_id_dict = pickle.loads(data[2])
-                print(self.song_id_dict)
-                self.liked_song = pickle.loads(data[3])
 
-                print("liked song")
-                print(self.liked_song)
-                if not self.player_thread.is_alive():
-                    self.player_thread.start()
-
-        return data
 
 
 
 
     def player_func(self):
+        print("player_thread")
         while True: # and not self.is_expired:
             cmd = self.gui_to_client_queue.get()
             self.queue_logging()
@@ -441,9 +599,9 @@ class Client:
                 print(cmd)
                 self.play_loop(cmd)
 
-
             self.player_log.debug("*********************************************************************")
         self.player_log.debug("finish player thread")
+
     def play_loop(self, cmd):
         while self.gui_to_client_queue.empty(): # and not self.is_expired:
             if not self.q.my_queue.empty() or (cmd == "prev" and self.q.prev_song_path != ""):
@@ -459,8 +617,6 @@ class Client:
                 self.client_to_gui_queue.put("nothing to play")
                 break
         self.player_log.debug("play loop has finished")
-
-
 
     def queue_logging(self):
         msg_queue = list(self.q.my_queue.queue)
