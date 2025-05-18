@@ -352,8 +352,11 @@ class UserInterface:
     def like_song(self, song_id, like_buttom):
         print(song_id)
         if song_id in self.client.liked_song:
-            self.client.song_and_playlist("remove", "liked_song", song_id)
-            like_buttom.config(text="🤍")
+            result = self.client.song_and_playlist("remove", "liked_song", song_id)
+            if result[0] == "T":
+                like_buttom.config(text="🤍")
+            elif result[0] == "F":
+                messagebox.showerror("error", result[1])
 
         else:
             self.client.song_and_playlist("add", "liked_song", song_id)
@@ -369,6 +372,8 @@ class UserInterface:
         if self.client.refresh_song_dict():
             self.show_frame("home")
             messagebox.showinfo("refresh", "refresh has done successfully")
+        else:
+            messagebox.showerror("refresh", "error while refreshing")
 
 
     def create_add_song_screen(self):

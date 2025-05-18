@@ -405,6 +405,51 @@ class Client:
         finally:
             return result
 
+    def refresh_song_dict(self):
+        """
+        Refresh the local song dictionary by requesting updated song data from the main server.
+
+        This function sends a "rfs" (refresh songs) command along with the user's token to the main server,
+        and attempts to receive an updated song dictionary. If the response is successful ("T"),
+        the dictionary is deserialized using pickle and stored in self.song_id_dict.
+
+        Returns:
+            bool: True if the song dictionary was successfully updated, False otherwise.
+
+        Handles:
+            - ConnectionError, OSError: Network-related issues during communication.
+            - pickle.PickleError: Issues decoding the received song dictionary.
+            - Any other unexpected exception is logged and results in a False return value.
+        """
+        try:
+            cmd = "rfs"
+            data = [self.token]
+            protocol_send(self.main_socket, cmd, data)
+            self.logging_protocol("send", cmd, data)
+
+            cmd, data = protocol_receive(self.main_socket)
+            self.logging_protocol("received", cmd, data)
+
+            if data[0] == "T":
+                song_dict = pickle.loads(data[1])
+                self.song_id_dict = song_dict
+                return True
+            else:
+                return False
+
+        except (ConnectionError, OSError) as net_err:
+            self.client_log.error(f"[ERROR] Network error during refresh: {net_err}")
+            return False
+
+        except pickle.PickleError as pickle_err:
+            self.client_log.error(f"[ERROR] Failed to deserialize song data: {pickle_err}")
+            return False
+
+        except Exception as e:
+            if self.client_log:
+                self.client_log.error(f"[ERROR] Unexpected error in refresh_song_dict: {e}")
+            return False
+
 
 
 
@@ -436,23 +481,13 @@ class Client:
         self.song_id_dict = {}
         self.liked_song = []
 
-    def refresh_song_dict(self):
-        cmd = "rfs"
-        data = [self.token]
-        protocol_send(self.main_socket, cmd, data)
-        self.logging_protocol("send", cmd, data)
-        cmd, data = protocol_receive(self.main_socket)
-        self.logging_protocol("received", cmd, data)
-        if data[0] == "True":
-            song_dict = pickle.loads(data[1])
-            self.song_id_dict = song_dict
-            return True
 
 
 
-    def song_and_playlist(self, cmd, playlist_name, song_id):
+
+    def song_and_playlist(self, func, playlist_name, song_id):
         try:
-            if cmd == "add":
+            if func == "add":
                 cmd = "atp"
                 data = [self.token, self.username, playlist_name, song_id]
                 protocol_send(self.main_socket, cmd, data)
@@ -463,11 +498,11 @@ class Client:
                 if data[0] == "F":
                     if data[1] == "Token has expired" or data[1] == "Invalid token":
                         self.is_expired = True
-                        return data[1]
-                if data[0] == 'True':
+                if data[0] == "T":
                     self.liked_song.append(song_id)
+                return data
 
-            elif cmd == "remove":
+            elif func == "remove":
                 cmd = "rfp"
                 data = [self.token, self.username, playlist_name, song_id]
                 protocol_send(self.main_socket, cmd, data)

@@ -184,7 +184,7 @@ def handle_client(client_socket):
                     elif cmd == "rfs":  # [token]
                         song_list = db.all_songs()
                         song_list = pickle.dumps(song_list)
-                        data = ["True", song_list]
+                        data = ["T", song_list]
                         protocol_send(client_socket, cmd, data)
                         logging_protocol("send", cmd, data)
 
@@ -192,8 +192,7 @@ def handle_client(client_socket):
                         username = data[1]
                         playlist_name = data[2]
                         song_id = data[3]
-                        check = db.add_to_playlist(username, playlist_name, song_id)
-                        data = [check]
+                        data = db.add_to_playlist(username, playlist_name, song_id)
                         protocol_send(client_socket, cmd, data)
                         logging_protocol("send", cmd, data)
 

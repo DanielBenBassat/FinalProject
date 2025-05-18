@@ -354,17 +354,12 @@ class MusicDB(DataBase):
         finally:
             return val
     def add_to_playlist(self, username, playlist_name, song_id):
-        # בדיקה אם המשתמש קיים
-        user_exists = self.select("users", where_condition={"username": username})
-        if not user_exists:
-            print(f"שגיאה: המשתמש '{username}' לא קיים.")
-            return f"Error: User '{username}' does not exist."
 
         # בדיקה אם השיר קיים
         song_exists = self.select("songs", where_condition={"id": song_id})
         if not song_exists:
             print(f"שגיאה: שיר עם מזהה {song_id} לא קיים.")
-            return f"Error: Song with ID {song_id} does not exist."
+            return ["F", "Song with ID does not exist"]
 
         # בדיקה אם השיר כבר בפלייליסט
         song_in_playlist = self.select("playlists", where_condition={
@@ -374,7 +369,8 @@ class MusicDB(DataBase):
         })
         if song_in_playlist:
             print(f"השיר כבר קיים בפלייליסט '{playlist_name}' של המשתמש '{username}'.")
-            return f"Error: Song {song_id} is already in playlist '{playlist_name}' for user '{username}'."
+            return ["F", "Song is already in playlist"]
+
 
         # הוספת השיר לפלייליסט
         data = {
@@ -385,7 +381,7 @@ class MusicDB(DataBase):
         self.insert("playlists", data)
 
         print(f"✅ השיר {song_id} נוסף לפלייליסט '{playlist_name}' של המשתמש '{username}'.")
-        return True
+        return ["T"]
 
     def remove_from_playlist(self, username, playlist_name, song_id):
         # בדיקה אם המשתמש קיים
