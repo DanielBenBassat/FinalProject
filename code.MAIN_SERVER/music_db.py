@@ -193,10 +193,7 @@ class MusicDB(DataBase):
     def check_server(self, token):
         try:
             cmd = "hlo"
-
             for address in self.address_list:
-                print(type(address[0]))
-                print(type(address[1]))
                 data = [token]
                 server = self.select("servers", "*", {"IP": address[0], "port": address[1]})
                 setting = server[0][3]  # עמודת setting (index 3)
@@ -206,17 +203,16 @@ class MusicDB(DataBase):
                         s.connect(address)  # address זה tuple של (host, port)
 
                         protocol_send(s, cmd, data)
-                        self.logging_protocol("send", cmd, data)
+                        #self.logging_protocol("send", cmd, data)
                         cmd, data = protocol_receive(s)
-                        self.logging_protocol("receive", cmd, data)
+                        #self.logging_protocol("receive", cmd, data)
 
-                        if data[0] == "True":
+                        if data[0] == "T":
                             if setting != "active":
                                 # עדכון בבסיס הנתונים
                                 self.update("servers", {"setting": "active"}, {"IP": address[0], "port": address[1]})
                         else:
                             self.task_log.debug(f"Server {address} responded with unexpected message")
-
                             if setting != "fallen":
                                 self.update("servers", {"setting": "fallen"}, {"IP": address[0], "port": address[1]})
 
@@ -265,9 +261,9 @@ class MusicDB(DataBase):
                         self.task_log.debug(f"song_id {song_id}, pending")
                         result = self.verify_func(token, song_id, (ip1, int(port1)))
                         self.task_log.debug(result)
-                        if result == "found":
+                        if result[1] == "found":
                             self.update("songs", {setting: "verified"}, {"id": song_id})
-                        elif result == "lost":
+                        elif result[1] == "lost":
                             if setting == "setting2":
                                 self.update("songs", {"ip2" : "" , "port2": "", "setting2": ""}, {"id": song_id})
                             elif setting == "setting1":
@@ -300,7 +296,7 @@ class MusicDB(DataBase):
             cmd, data = protocol_receive(media_socket) # "get" , [file_name, file_bytes]
             self.logging_protocol("recv", cmd, data)
             media_socket.close()
-            return data[0]
+            return data
 
 
         except socket.error as e:

@@ -1,8 +1,7 @@
 import pickle
 import socket
 import threading
-from protocol import protocol_receive
-from protocol import protocol_send
+from protocol import protocol_receive, protocol_send
 import logging
 import os
 from music_db import MusicDB
@@ -11,250 +10,193 @@ import jwt
 import datetime
 import ssl
 
-CERT_FILE = "C:/work/cyber/FinalProject/code.MAIN_SERVER/certificate_main.crt"
-KEY_FILE = "C:/work/cyber/FinalProject/code.MAIN_SERVER/privatekey_main.key"
-IP = "127.0.0.1"
-PORT = 5555
-CLIENTS_SOCKETS = []
-THREADS = []
-ADDRESS_LIST = [("127.0.0.1", 2222), ("127.0.0.1", 3333)]
-SECRET_KEY = "my_secret_key"
 
-LOG_FORMAT = '%(levelname)s | %(asctime)s | %(message)s'
-LOG_LEVEL = logging.DEBUG
-LOG_DIR = 'log2'
-LOG_FILE = LOG_DIR + '/main_server.log'
+class MainServer:
+    def __init__(self, ip, port, cert_file, key_file, address_list, secret_key):
+        self.IP = ip
+        self.PORT = port
+        self.CERT_FILE = cert_file
+        self.KEY_FILE = key_file
+        self.ADDRESS_LIST = address_list
+        self.SECRET_KEY = secret_key
 
+        self.CLIENTS_SOCKETS = []
+        self.THREADS = []
+        self.LOG_FORMAT = '%(levelname)s | %(asctime)s | %(message)s'
+        self.LOG_LEVEL = logging.DEBUG
+        self.LOG_DIR = 'log2'
+        self.LOG_FILE = os.path.join(self.LOG_DIR, 'main_server.log')
 
-def logging_protocol(func, cmd, data):
-    """
-    Logs a protocol-level action for debugging.
+        self._setup_logging()
+        self.context = ssl.SSLContext(ssl.PROTOCOL_TLS_SERVER)
+        self.context.load_cert_chain(certfile=self.CERT_FILE, keyfile=self.KEY_FILE)
 
-    :param func: The type of operation ("send" or "recv").
-    :param cmd: The command used .
-    :param data: Data sent or received in the protocol.
-    """
-    try:
-        msg = func + " : " + cmd
-        for i in data:
-            if type(i) is not bytes:
-                msg += ", " + str(i)
-        logging.debug(msg)
-    except Exception as e:
-        logging.debug(e)
+    def _setup_logging(self):
+        if not os.path.isdir(self.LOG_DIR):
+            os.makedirs(self.LOG_DIR)
+        logging.basicConfig(format=self.LOG_FORMAT, filename=self.LOG_FILE, level=self.LOG_LEVEL)
 
+    def logging_protocol(self, func, cmd, data):
+        try:
+            msg = func + " : " + cmd
+            for i in data:
+                if not isinstance(i, bytes):
+                    msg += ", " + str(i)
+            logging.debug(msg)
+        except Exception as e:
+            logging.debug(e)
 
-def background_task():
-    db = MusicDB("my_db.db", ADDRESS_LIST)
-    token = generate_token()
-    token2 = generate_token()
-    while True:
-        db.check_server(token)
-        db.verify(token)
-        db.backup_songs(token, token2)
-        time.sleep(15)
+    def generate_token(self):
+        payload = {
+            "exp": datetime.datetime.utcnow() + datetime.timedelta(hours=1),
+            "iat": datetime.datetime.utcnow()
+        }
+        return jwt.encode(payload, self.SECRET_KEY, algorithm="HS256")
 
+    def verify_token(self, token):
+        try:
+            payload = jwt.decode(token, self.SECRET_KEY, algorithms=["HS256"])
+            return {"valid": True, "data": payload}
+        except jwt.ExpiredSignatureError:
+            return {"valid": False, "error": "Token has expired"}
+        except jwt.InvalidTokenError:
+            return {"valid": False, "error": "Invalid token"}
 
-def generate_token():
-    """
-    Generates a new JWT token with a short expiration time.
+    def background_task(self):
+        db = MusicDB("my_db.db", self.ADDRESS_LIST)
+        token = self.generate_token()
+        token2 = self.generate_token()
+        while True:
+            db.check_server(token)
+            db.verify(token)
+            db.backup_songs(token, token2)
+            time.sleep(15)
 
-    :return: A JWT token string encoded using the HS256 algorithm, containing:
-             - 'exp': Token expiration time (5 minutes from creation)
-             - 'iat': Token creation time (current UTC time)
-    """
-    payload = {
-        "exp": datetime.datetime.utcnow() + datetime.timedelta(hours=1),  # תוקף לשעה
-        "iat": datetime.datetime.utcnow(),  # זמן יצירה
-    }
-    token = jwt.encode(payload, SECRET_KEY, algorithm="HS256")
-    return token
+    def login_signup(self, db, client_socket):
+        logging.debug("Waiting for login or signup")
+        songs_dict = pickle.dumps(db.all_songs())
+        token = self.generate_token()
 
+        while True:
+            msg = protocol_receive(client_socket)
+            if msg is not None:
+                cmd, data = msg
+                self.logging_protocol("receive", cmd, data)
 
-def verify_token(token):
-    """
-    Verifies a JWT token.
+                if cmd == "sig":
+                    username, password = data
+                    success = db.add_user(username, password)
+                    response_data = ["T", token, songs_dict] if success else ["F", "existing"]
+                    protocol_send(client_socket, cmd, response_data)
+                    self.logging_protocol("send", cmd, response_data)
+                    if success:
+                        return True
 
-    :param token: The token string to verify.
-    :return: A dict with 'valid': True/False. if True return איק פשטךםשג and if false return the type of error
-    """
-    try:
-        payload = jwt.decode(token, SECRET_KEY, algorithms=["HS256"])
-        return {"valid": True, "data": payload}
-    except jwt.ExpiredSignatureError:
-        return {"valid": False, "error": "Token has expired"}
-    except jwt.InvalidTokenError:
-        return {"valid": False, "error": "Invalid token"}
+                elif cmd == "log":
+                    username, password = data
+                    valid, reason = db.verified_user(username, password)
+                    if not valid:
+                        response_data = ["F", reason]
+                    else:
+                        liked = pickle.dumps(db.get_user_playlists(username, "liked_song"))
+                        response_data = ["T", token, songs_dict, liked]
+                    protocol_send(client_socket, cmd, response_data)
+                    self.logging_protocol("send", cmd, response_data)
+                    if valid:
+                        return True
 
+                elif cmd in ("ext", "error"):
+                    logging.debug("EXT command received")
+                    return False
 
-def login_signup(db, client_socket):
-    logging.debug("back to waiting for log")
-    songs_dict = db.all_songs()
-    songs_dict = pickle.dumps(songs_dict)
-    token = generate_token()
-    temp = True
-    val = True
-    while temp:
-        msg = protocol_receive(client_socket)
-        if msg is not None:
-            cmd = msg[0]
-            data = msg[1]
-            logging_protocol("receive", cmd, data)
-            if cmd == "sig":
-                username = data[0]
-                password = data[1]
-                check = db.add_user(username, password)
+    def handle_client(self, client_socket):
+        try:
+            db = MusicDB("my_db.db", self.ADDRESS_LIST)
+            if not self.login_signup(db, client_socket):
+                return
 
-                cmd = "sig"
-                if check:
-                    data = ["T", token, songs_dict]
-                    temp = False
-                else:
-                    data = ["F", "existing"]
-                protocol_send(client_socket, cmd, data)
-                logging_protocol("send", cmd, data)
-
-            elif cmd == "log":
-                username = data[0]
-                password = data[1]
-                val, problem = db.verified_user(username, password)
-                cmd = "log"
-                if not val:
-                    if problem == "username":
-                        data = ["F", "username"]
-                        protocol_send(client_socket, cmd, data)
-                    elif problem == "password":
-                        data = ["", "password"]
-                        protocol_send(client_socket, cmd, data)
-                elif val:
-                    temp = False
-                    liked_song = db.get_user_playlists(username, "liked_song")
-                    liked_song = pickle.dumps(liked_song)
-                    data = ["T", token, songs_dict, liked_song]
-                    protocol_send(client_socket, cmd, data)
-                logging_protocol("send", cmd, data)
-
-            elif cmd == "ext" or cmd == "error":
-                print("EXT command received, breaking loop.")
-                temp = False
-                val = False
-    logging.debug("finish loign")
-    return val
-
-
-def handle_client(client_socket):
-    try:
-        db = MusicDB("my_db.db", ADDRESS_LIST)
-        temp = login_signup(db, client_socket)
-
-        while temp:
-            try:
-                print("waiting for cmd")
+            while True:
                 cmd, data = protocol_receive(client_socket)
-                logging_protocol("receive", cmd, data)
+                self.logging_protocol("receive", cmd, data)
 
                 token = data[0]
-                valid = verify_token(token)
-                if not valid.get("valid"):
-                    error = valid.get("error")
-                    data = ["F", error]
-                    protocol_send(client_socket, cmd, data)
-                    logging_protocol("send", cmd, data)
-                    login_signup(db, client_socket)
+                verification = self.verify_token(token)
 
-                elif valid.get("valid"):
-                    if cmd == "gad":  # [id]
-                        song_id = data[1]
-                        address = db.get_address(song_id)
-                        if address:
-                            data = ["T", address[0], address[1]]
-                            protocol_send(client_socket, cmd, data)
-                        else:
-                            data = ["F", "ID not found"]
-                            protocol_send(client_socket, cmd, data)
-                        logging_protocol("send", cmd, data)
-
-                    elif cmd == "pad":  # [name, artist]
-                        name = data[1]
-                        artist = data[2]
-                        data = db.add_song(name, artist)
-                        protocol_send(client_socket, cmd, data)
-                        logging_protocol("send", cmd, data)
-
-                    elif cmd == "rfs":  # [token]
-                        song_list = db.all_songs()
-                        song_list = pickle.dumps(song_list)
-                        data = ["T", song_list]
-                        protocol_send(client_socket, cmd, data)
-                        logging_protocol("send", cmd, data)
-
-                    elif cmd == "atp":  # add to playlist
-                        username = data[1]
-                        playlist_name = data[2]
-                        song_id = data[3]
-                        data = db.add_to_playlist(username, playlist_name, song_id)
-                        protocol_send(client_socket, cmd, data)
-                        logging_protocol("send", cmd, data)
-
-                    elif cmd == "rfp":  # remove from playlist
-                        username = data[1]
-                        playlist_name = data[2]
-                        song_id = data[3]
-                        data = db.remove_from_playlist(username, playlist_name, song_id)
-                        protocol_send(client_socket, cmd, data)
-                        logging_protocol("send", cmd, data)
-
-                    elif cmd == "lgu":
-                        login_signup(db, client_socket)
-
-                    elif cmd == "ext" or cmd == "error":
-                        print("EXT command received, breaking loop.")
+                if not verification["valid"]:
+                    protocol_send(client_socket, cmd, ["F", verification["error"]])
+                    self.logging_protocol("send", cmd, ["F", verification["error"]])
+                    if not self.login_signup(db, client_socket):
                         break
+                    continue
 
-            except Exception as e:
-                logging.error(f"[ERROR] Exception in client handling: {e}")
-                break  # יציאה אם יש שגיאה`
+                if cmd == "gad":
+                    address = db.get_address(data[1])
+                    response_data = ["T", *address] if address else ["F", "ID not found"]
 
-    except socket.error as e:
-        logging.error(f"[ERROR] Socket error: {e}")
-    finally:
-        client_socket.close()
-        logging.debug("Client disconnected")
-        logging.debug(f"[ACTIVE CONNECTIONS] {threading.active_count() - 2}")
+                elif cmd == "pad":
+                    response_data = db.add_song(data[1], data[2])
 
+                elif cmd == "rfs":
+                    response_data = ["T", pickle.dumps(db.all_songs())]
 
-def main():
-    context = ssl.SSLContext(ssl.PROTOCOL_TLS_SERVER)
-    context.load_cert_chain(certfile=CERT_FILE, keyfile=KEY_FILE)
-    server = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-    try:
-        server.bind((IP, PORT))
-        server.listen()
-        while True:
-            try:
-                client_socket, client_address = server.accept()
-                ssl_client_socket = context.wrap_socket(client_socket, server_side=True)
+                elif cmd == "atp":
+                    response_data = db.add_to_playlist(data[1], data[2], data[3])
 
-                CLIENTS_SOCKETS.append(ssl_client_socket)
-                thread = threading.Thread(target=handle_client, args=(ssl_client_socket,))
-                THREADS.append(thread)
+                elif cmd == "rfp":
+                    response_data = db.remove_from_playlist(data[1], data[2], data[3])
+
+                elif cmd == "lgu":
+                    if not self.login_signup(db, client_socket):
+                        break
+                    continue
+
+                elif cmd in ("ext", "error"):
+                    break
+                else:
+                    response_data = ["F"]
+
+                protocol_send(client_socket, cmd, response_data)
+                self.logging_protocol("send", cmd, response_data)
+
+        except Exception as e:
+            logging.error(f"[ERROR] Exception in client handling: {e}")
+        finally:
+            client_socket.close()
+            logging.debug("Client disconnected")
+
+    def start(self):
+        server_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        server_socket.bind((self.IP, self.PORT))
+        server_socket.listen()
+        logging.debug("Server started and listening...")
+
+        background = threading.Thread(target=self.background_task, daemon=True)
+        background.start()
+
+        try:
+            while True:
+                client_socket, _ = server_socket.accept()
+                ssl_socket = self.context.wrap_socket(client_socket, server_side=True)
+                self.CLIENTS_SOCKETS.append(ssl_socket)
+
+                thread = threading.Thread(target=self.handle_client, args=(ssl_socket,))
+                self.THREADS.append(thread)
                 thread.start()
                 logging.debug(f"[ACTIVE CONNECTIONS] {threading.active_count() - 2}")
-            except socket.error:
-                logging.debug("socket error")
-
-    except socket.error:
-        logging.debug("socket error")
-    finally:
-        server.close()
-        logging.debug("server is closed")
+        except Exception as e:
+            logging.error(f"Server error: {e}")
+        finally:
+            server.close()
+            logging.debug("Server closed")
 
 
 if __name__ == "__main__":
-    if not os.path.isdir(LOG_DIR):
-        os.makedirs(LOG_DIR)
-    logging.basicConfig(format=LOG_FORMAT, filename=LOG_FILE, level=LOG_LEVEL)
-
-    background_thread = threading.Thread(target=background_task, daemon=True)
-    background_thread.start()
-    main()
+    server = MainServer(
+        ip="127.0.0.1",
+        port=5555,
+        cert_file="C:/work/cyber/FinalProject/code.MAIN_SERVER/certificate_main.crt",
+        key_file="C:/work/cyber/FinalProject/code.MAIN_SERVER/privatekey_main.key",
+        address_list=[("127.0.0.1", 2222), ("127.0.0.1", 3333)],
+        secret_key="my_secret_key"
+    )
+    server.start()
