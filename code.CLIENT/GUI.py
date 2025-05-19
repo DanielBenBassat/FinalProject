@@ -35,7 +35,7 @@ class UserInterface:
         self.root.protocol("WM_DELETE_WINDOW", self.closing)  # <- כאן זה קורה
 
     def logout(self):
-        self.client.gui_to_client_queue.put("stop")
+        self.client.gui_to_client_queue.put("logout")
         self.client.reset()
         self.show_frame("welcome")
 
@@ -43,7 +43,7 @@ class UserInterface:
         try:
             print("closing")
             self.client.gui_to_client_queue.put("shutdown")
-            self.client.exit()
+
 
             time.sleep(0.1)
             while not self.client.q.my_queue.empty():
@@ -56,13 +56,14 @@ class UserInterface:
             if os.path.exists(self.client.q.prev_song_path) and self.client.q.prev_song_path != "":
                 os.remove(self.client.q.prev_song_path)
             if os.path.exists(self.client.q.recent_song_path) and self.client.q.recent_song_path != "":
-                time.sleep(0.1)
                 os.remove(self.client.q.recent_song_path)
+
+            self.client.exit()
         except Exception as e:
             print(e)
         finally:
             print("good bye")
-            self.root.destroy()  # <- שורת הקסם שחסרה
+            self.root.destroy()
 
 
 
@@ -359,14 +360,18 @@ class UserInterface:
                 messagebox.showerror("error", result[1])
 
         else:
-            self.client.song_and_playlist("add", "liked_song", song_id)
-            like_buttom.config(text="❤")
+            result = self.client.song_and_playlist("add", "liked_song", song_id)
+            if result[0] == "T":
+                like_buttom.config(text="❤")
+            elif result[1] == "F":
+                messagebox.showerror("error", result[1])
         if self.client.is_expired:
             messagebox.showerror("error", "token invalid or token has expired")
             self.logout()
     def play_playlist(self, playlist):
         # כאן תוכל להפעיל את הפונקציה שתנגן את כל השירים שאהב המשתמש
         self.client.play_playlist(playlist)
+        self.play_pause()
 
     def refresh_home_screen(self):
         if self.client.refresh_song_dict():

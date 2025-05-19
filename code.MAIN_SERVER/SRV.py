@@ -200,8 +200,7 @@ def handle_client(client_socket):
                         username = data[1]
                         playlist_name = data[2]
                         song_id = data[3]
-                        check = db.remove_from_playlist(username, playlist_name, song_id)
-                        data = [check]
+                        data = db.remove_from_playlist(username, playlist_name, song_id)
                         protocol_send(client_socket, cmd, data)
                         logging_protocol("send", cmd, data)
 

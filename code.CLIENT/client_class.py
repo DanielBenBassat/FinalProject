@@ -450,147 +450,223 @@ class Client:
                 self.client_log.error(f"[ERROR] Unexpected error in refresh_song_dict: {e}")
             return False
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-    def logout(self):
-        self.q = SongsQueue()
-        self.p = MusicPlayer()
-        self.client_to_gui_queue = queue.Queue()
-        self.gui_to_client_queue = queue.Queue()
-        self.username = ""
-        self.token = ""
-        self.song_id_dict = {}
-        self.liked_song = []
-
-
-
-
-
     def song_and_playlist(self, func, playlist_name, song_id):
+        """
+        Add or remove a song from a user's playlist on the server.
+
+        This function communicates with the main server to add or remove a song from a specified playlist.
+        It uses the token and username for authentication and handles token expiration.
+
+        Parameters:
+            func (str): Operation to perform - "add" to add song, "remove" to remove song.
+            playlist_name (str): Name of the playlist.
+            song_id (str): ID of the song to add/remove.
+
+        Returns:
+            list: A response list from the server. ["T", ...] on success, ["F", reason] on failure.
+
+        Handles:
+            - Network errors
+            - Protocol errors
+            - Unexpected exceptions
+            - Token expiration
+        """
         try:
             if func == "add":
                 cmd = "atp"
                 data = [self.token, self.username, playlist_name, song_id]
-                protocol_send(self.main_socket, cmd, data)
-                self.logging_protocol("send", cmd, data)
-
-                cmd, data = protocol_receive(self.main_socket)
-                self.logging_protocol("received", cmd, data)
-                if data[0] == "F":
-                    if data[1] == "Token has expired" or data[1] == "Invalid token":
-                        self.is_expired = True
-                if data[0] == "T":
-                    self.liked_song.append(song_id)
-                return data
-
             elif func == "remove":
                 cmd = "rfp"
                 data = [self.token, self.username, playlist_name, song_id]
+            else:
+                raise ValueError("Invalid function type. Expected 'add' or 'remove'.")
+
+            protocol_send(self.main_socket, cmd, data)
+            self.logging_protocol("send", cmd, data)
+
+            cmd, data = protocol_receive(self.main_socket)
+            self.logging_protocol("received", cmd, data)
+
+            if data[0] == "F":
+                if data[1] in ("Token has expired", "Invalid token"):
+                    self.is_expired = True
+                return data
+
+            if data[0] == "T":
+                if func == "add" and song_id not in self.liked_song:
+                    self.liked_song.append(song_id)
+                elif func == "remove" and song_id in self.liked_song:
+                    self.liked_song.remove(song_id)
+                return data
+
+            return ["F", "Unexpected response format"]
+
+        except (ConnectionError, OSError) as net_err:
+            error_msg = f"[ERROR] Network error during song_and_playlist: {net_err}"
+            self.client_log.error(error_msg)
+            return ["F", error_msg]
+
+        except ValueError as ve:
+            self.client_log.error(f"[ERROR] Value error: {ve}")
+            return ["F", str(ve)]
+
+        except Exception as e:
+            error_msg = f"[ERROR] Unexpected exception in song_and_playlist: {e}"
+            self.client_log.error(error_msg)
+            return ["F", str(e)]
+
+    def reset(self):
+        """
+        Resets the client state after logout or token expiration.
+
+        - Sends a logout request to the main server if the session is still valid.
+        - Clears the local playback queue and user-related data.
+        - Marks the client as expired to prevent further actions.
+
+        This method also handles and logs any exceptions that occur during cleanup.
+        """
+        self.client_log.debug("reset() called - logging out user")
+        try:
+            if not self.is_expired:
+                cmd = "lgu"
+                data = [self.token]
                 protocol_send(self.main_socket, cmd, data)
                 self.logging_protocol("send", cmd, data)
+                self.client_log.debug("Logout request sent to main server.")
 
-                cmd, data = protocol_receive(self.main_socket)
-                self.logging_protocol("received", cmd, data)
-                if data[0] == "F":
-                    if data[1] == "Token has expired" or data[1] == "Invalid token":
-                        self.is_expired = True
-                        return data
-                if data[0] == 'True':
-                    self.liked_song.remove(song_id)
+            self.q.clear_queue()
+            self.username = ""
+            self.token = ""
+            self.song_id_dict = {}
+            self.liked_song = []
+            self.is_expired = True
+            self.client_log.debug("Client state has been reset.")
+
         except Exception as e:
-            print(e)
-
-
+            self.client_log.debug(f"Exception occurred during reset: {e}")
 
     def exit(self):
+        """
+        Gracefully shuts down the client.
+
+        - Sends an 'exit' command (`ext`) to the main server to notify of disconnection.
+        - Closes the main socket connection safely.
+        - Resets the music queue, music player, and internal queues.
+        - Clears all user-related state including token, username, liked songs, etc.
+        - Marks the client as expired.
+
+        Any exceptions during the shutdown process are caught and logged.
+        """
+        self.client_log.debug("exit() called - shutting down client")
         try:
-            print("exit")
+            # Attempt to send exit command to server
             cmd = "ext"
             data = [self.token]
             protocol_send(self.main_socket, cmd, data)
             self.logging_protocol("send", cmd, data)
+            self.client_log.debug("Exit command sent to main server.")
+
+            # Close main socket safely
             if self.main_socket:
                 try:
                     self.main_socket.close()
+                    self.client_log.debug("Main socket closed.")
                 except Exception as e:
                     self.client_log.debug(f"Error closing socket: {e}")
 
+            # Reset components and state
             self.q = SongsQueue()
             self.p = MusicPlayer()
             self.client_to_gui_queue = queue.Queue()
             self.gui_to_client_queue = queue.Queue()
 
-            #self.player_thread.join()
-
             self.username = ""
             self.token = ""
             self.song_id_dict = {}
             self.liked_song = []
             self.is_expired = True
+
+            self.client_log.debug("Client state fully reset.")
             print("end of exit")
+
         except Exception as e:
-            print(e)
-
-    def reset(self):
-        self.client_log.debug("logout")
-        try:
-            if not self.is_expired: # client want to logout
-                cmd = "lgu"
-                data = [self.token]
-                protocol_send(self.main_socket, cmd, data)
-                self.logging_protocol("send", cmd, data)
-
-            self.q.clear_queue()
-            while not self.client_to_gui_queue.empty():
-                temp = self.client_to_gui_queue.get()
-            self.gui_to_client_queue = queue.Queue()
-            while not self.gui_to_client_queue.empty():
-                temp = self.gui_to_client_queue.get()
-
-            self.p = MusicPlayer()
-            self.username = ""
-            self.token = ""
-            self.song_id_dict = {}
-            self.liked_song = []
-            self.is_expired = True
-        except Exception as e:
-            self.client_log.debug(f"Error closing socket: {e}")
-
-
-
-
-
-
-
-
-
-
-
+            self.client_log.debug(f"Exception during exit: {e}")
+            print(f"Error during client exit: {e}")
 
     def play_playlist(self, playlist):
-        self.q.clear_queue()
-        self.p.stop_song()
-        for song in playlist:
-            self.listen_song(song)
+        """
+        Clears the current song queue and starts playing the given playlist.
+
+        Parameters:
+        playlist (list): A list of song metadata (e.g., song paths or song objects) to enqueue and play.
+
+        Behavior:
+        - Clears the existing queue to avoid mixing with previous songs.
+        - Stops any currently playing song.
+        - Enqueues and processes each song in the playlist using `listen_song`.
+
+        Exceptions:
+        - Any error during queue manipulation or song playback is caught and logged.
+        """
+        try:
+            self.client_log.debug("Starting playlist playback.")
+            self.q.clear_queue()
+            self.client_log.debug("Cleared current queue.")
+
+            self.p.stop_song()
+            self.client_log.debug("Stopped any currently playing song.")
+
+            for song in playlist:
+                self.listen_song(song)
+                self.client_log.debug(f"Added song to queue: {song}")
+
+            self.client_log.debug("Playlist setup completed.")
+
+        except Exception as e:
+            self.client_log.debug(f"Error in play_playlist: {e}")
+            print(f"Failed to play playlist: {e}")
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -625,9 +701,18 @@ class Client:
                 if self.q.prev_song_path != "":
                     self.p.stop_song()
                     play = True
+            elif cmd == "logout":
+                self.p.stop_song()
+                self.player_log.debug("stop song: ")
+                while not self.client_to_gui_queue.empty():
+                    temp = self.client_to_gui_queue.get()
+                while not self.gui_to_client_queue.empty():
+                    temp = self.gui_to_client_queue.get()
+                self.player_log.debug("clear queues")
 
             elif cmd == "shutdown":
                 self.p.shutdown()
+                self.player_log.debug("shut down: ")
                 break
 
             if play:
@@ -638,7 +723,7 @@ class Client:
         self.player_log.debug("finish player thread")
 
     def play_loop(self, cmd):
-        while self.gui_to_client_queue.empty(): # and not self.is_expired:
+        while self.gui_to_client_queue.empty():
             if not self.q.my_queue.empty() or (cmd == "prev" and self.q.prev_song_path != ""):
                 song_path = self.q.get_song(cmd)
                 self.queue_logging()
