@@ -33,7 +33,6 @@ class MusicPlayer:
             if not cmd_queue.empty():
                 print("new cmd")
                 pygame.mixer.music.unload()  # יש רק בגרסאות מסוימות של pygame
-
                 break
             pygame.time.Clock().tick(30)
 

@@ -629,53 +629,6 @@ class Client:
 
 
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
     def player_func(self):
         print("player_thread")
         while True: # and not self.is_expired:
@@ -696,7 +649,6 @@ class Client:
                 if not self.q.my_queue.empty():
                     self.p.stop_song()
                     play = True
-
             elif cmd == "prev":
                 if self.q.prev_song_path != "":
                     self.p.stop_song()
@@ -746,3 +698,27 @@ class Client:
 
         msg = f"paused: {self.p.is_paused}::::: recent: {self.q.recent_song_path}, previous: {self.q.prev_song_path}, old: {self.q.old_song_path}, queue: {msg_queue}"
         self.player_log.debug(msg)
+
+
+    def delete_files(self):
+        """
+        Deletes temporary or old song files stored in the queue and other tracked paths.
+        Checks if each file exists before attempting removal.
+        """
+        try:
+            self.player_log.debug("deleting files")
+            while not self.q.my_queue.empty():
+                file_path = self.q.my_queue.get()
+                if os.path.exists(file_path):
+                    os.remove(file_path)
+
+            # Remove additional tracked files if they exist
+            if os.path.exists(self.q.old_song_path):
+                os.remove(self.q.old_song_path)
+            if os.path.exists(self.q.prev_song_path):
+                os.remove(self.q.prev_song_path)
+            if os.path.exists(self.q.recent_song_path):
+                os.remove(self.q.recent_song_path)
+        except Exception as e:
+            self.player_log.error(f"Error deleting files: {e}")
+
