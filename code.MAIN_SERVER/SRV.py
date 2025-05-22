@@ -46,8 +46,9 @@ class MainServer:
         except Exception as e:
             logging.debug(e)
 
-    def generate_token(self):
+    def generate_token(self, username):
         payload = {
+            "sub": username,  # Subject: מי המשתמש
             "exp": datetime.datetime.utcnow() + datetime.timedelta(hours=1),
             "iat": datetime.datetime.utcnow()
         }
@@ -64,8 +65,8 @@ class MainServer:
 
     def background_task(self):
         db = MusicDB("my_db.db", self.ADDRESS_LIST)
-        token = self.generate_token()
-        token2 = self.generate_token()
+        token = self.generate_token("main_server")
+        token2 = self.generate_token("media_server")
         while True:
             db.check_server(token)
             db.verify(token)
@@ -75,7 +76,6 @@ class MainServer:
     def login_signup(self, db, client_socket):
         logging.debug("Waiting for login or signup")
         songs_dict = pickle.dumps(db.all_songs())
-        token = self.generate_token()
 
         while True:
             msg = protocol_receive(client_socket)
@@ -86,6 +86,7 @@ class MainServer:
                 if cmd == "sig":
                     username, password = data
                     success = db.add_user(username, password)
+                    token = self.generate_token(username)
                     response_data = ["T", token, songs_dict] if success else ["F", "existing"]
                     protocol_send(client_socket, cmd, response_data)
                     self.logging_protocol("send", cmd, response_data)
@@ -94,15 +95,17 @@ class MainServer:
 
                 elif cmd == "log":
                     username, password = data
-                    valid, reason = db.verified_user(username, password)
-                    if not valid:
+                    is_verified, reason = db.verified_user(username, password)
+                    token = self.generate_token(username)
+
+                    if not is_verified:
                         response_data = ["F", reason]
                     else:
                         liked = pickle.dumps(db.get_user_playlists(username, "liked_song"))
                         response_data = ["T", token, songs_dict, liked]
                     protocol_send(client_socket, cmd, response_data)
                     self.logging_protocol("send", cmd, response_data)
-                    if valid:
+                    if is_verified:
                         return True
 
                 elif cmd in ("ext", "error"):

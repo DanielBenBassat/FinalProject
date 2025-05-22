@@ -108,7 +108,10 @@ class MediaServer:
 
             elif cmd == "pst":
                 is_ok = self.add_song(data[2], str(data[1]))
-                res = ["T", "post song succeeded"] if is_ok else ["F", "post song failed"]
+                if is_ok:
+                    res = ["T", "post song succeeded"]
+                else:
+                    res = ["F", "post song failed"]
                 protocol_send(client_socket, cmd, res)
                 self.logging_protocol("send", cmd, res)
 

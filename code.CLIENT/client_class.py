@@ -307,7 +307,11 @@ class Client:
 
             # Get media server address for the new song
             data = self.get_address_new_song(song_name, artist)
-            if data[0] == "T":
+            if data[0] == "F":
+                if data[1] in ("Token has expired", "Invalid token"):
+                    self.is_expired = True
+                self.client_log.debug(f"Failed to get upload address: {data}")
+            elif data[0] == "T":
                 song_id = int(data[1])
                 ip = data[2]
                 port = int(data[3])
@@ -341,11 +345,6 @@ class Client:
 
             cmd, data = protocol_receive(self.main_socket)  # e.g., "pad", ["T", id, ip, port]
             self.logging_protocol("received", cmd, data)
-
-            if data[0] == "F":
-                if data[1] in ("Token has expired", "Invalid token"):
-                    self.is_expired = True
-                self.client_log.debug(f"Failed to get upload address: {data}")
             return data
 
         except Exception as e:

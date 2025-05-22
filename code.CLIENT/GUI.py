@@ -1,7 +1,5 @@
 import tkinter as tk
 from client_class import Client
-import os
-import time
 import queue
 from tkinter import messagebox
 import hashlib
@@ -74,7 +72,6 @@ class UserInterface:
 
         except Exception as e:
             print(f"[ERROR] Failed to show frame '{frame_name}': {e}")
-
 
     def add_navigation_buttons(self, frame, current_screen):
         """
@@ -359,7 +356,6 @@ class UserInterface:
         except Exception as e:
             print(f"[ERROR] Failed to create home screen: {e}")
             return tk.Frame(self.root)  # fallback to empty frame
-
 
     def create_song_row(self, parent, song_name, artist, song_id):
         """
@@ -766,6 +762,6 @@ if __name__ == "__main__":
         root1 = tk.Tk()
         app = UserInterface(root1, client1)  # �
         app.start()
-    except Exception as e:
-        print(e)
+    except Exception as error:
+        print(error)
 

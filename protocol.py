@@ -1,5 +1,3 @@
-
-
 def protocol_send(my_socket, cmd, data):
     try:
         #msg = cmd + "!" + str(len(data))
@@ -23,8 +21,6 @@ def protocol_send(my_socket, cmd, data):
 
             temp = sign + i_length + "!"
             msg += temp.encode() + encoded_data
-
-
         my_socket.send(msg)
     except Exception as e:  # תפיסת כל סוגי החריגות
         print(f"exception in sending protocol {e}")

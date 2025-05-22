@@ -1,6 +1,4 @@
 import pygame
-import queue
-import threading
 from time import sleep
 
 class MusicPlayer:

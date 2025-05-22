@@ -11,6 +11,7 @@ LOG_DIR = 'log2'
 LOG_FILE_TASK = os.path.join(LOG_DIR, 'background_task.log')
 LOG_FILE_DB = os.path.join(LOG_DIR, 'music_db.log')
 LOG_FORMAT = '%(levelname)s | %(asctime)s | %(name)s | %(message)s'
+
 class MusicDB(DataBase):
     def __init__(self, name, address_list):
         super().__init__(name)
@@ -114,6 +115,7 @@ class MusicDB(DataBase):
                 return False, "password"
         else:
             return False, "username"
+
 
     def all_songs(self):
         song_dict = {}
@@ -269,7 +271,6 @@ class MusicDB(DataBase):
                             elif setting == "setting1":
                                 self.update("songs", {"ip1" : "" , "port1": "", "setting1": ""}, {"id": song_id})
 
-
                 except ValueError as e:
                     print(f"Error converting port to integer for song ID {song_id}: {e}")
                 except Exception as e:
@@ -405,8 +406,6 @@ class MusicDB(DataBase):
 
         print(f"✅ השיר {song_id} הוסר מפלייליסט '{playlist_name}' של המשתמש '{username}'.")
         return ["T"]
-
-
 
     def get_user_playlists(self, username, playlist_name):
         # שליפת מזהי שירים מהפלייליסט
