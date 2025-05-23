@@ -76,44 +76,45 @@ class UserInterface:
 
     def add_navigation_buttons(self, frame, current_screen):
         """
-        Adds navigation buttons on the left side of the given frame.
-        Buttons vary depending on the current screen to allow navigation between
-        'home', 'add_song', and 'profile' screens, plus a logout button.
-
-        :param frame: The parent tkinter frame to place navigation buttons into.
-        :param current_screen: String identifier of the current screen ("home", "add_song", "profile").
+        Adds compact navigation buttons on the left side of the given frame.
         """
         try:
-            navigation_frame = tk.Frame(frame, bg="#ecf0f1")  # רקע אפור בהיר
-            navigation_frame.pack(side="left", fill="y", padx=10, pady=10)
+            navigation_frame = tk.Frame(frame, bg="#ecf0f1", width=120)
+            navigation_frame.pack(side="left", fill="y", padx=5, pady=10)
 
             button_style = {
                 "bg": "#bdc3c7",
                 "fg": "black",
-                "font": ("Arial", 11),
-                "width": 18,
+                "font": ("Arial", 10),
+                "width": 12,  # 👈 רוחב מוקטן
                 "relief": "flat",
                 "activebackground": "#95a5a6"
             }
 
-            if current_screen == "home":
-                tk.Button(navigation_frame, text="➕ Add Song", command=lambda: self.show_frame("add_song"), **button_style).pack(pady=8)
-                tk.Button(navigation_frame, text="👤 Profile", command=lambda: self.show_frame("profile"), **button_style).pack(pady=8)
+            nav_options = {
+                "home": [("➕ Add song", "add_song"), ("👤 Profile", "profile")],
+                "add_song": [("🏠 Home", "home"), ("👤 Profile", "profile")],
+                "profile": [("🏠 Home", "home"), ("➕ Add song", "add_song")]
+            }
 
-            elif current_screen == "add_song":
-                tk.Button(navigation_frame, text="🏠 Home", command=lambda: self.show_frame("home"), **button_style).pack(pady=8)
-                tk.Button(navigation_frame, text="👤 Profile", command=lambda: self.show_frame("profile"), **button_style).pack(pady=8)
+            for label, target in nav_options.get(current_screen, []):
+                tk.Button(
+                    navigation_frame,
+                    text=label,
+                    command=lambda t=target: self.show_frame(t),
+                    **button_style
+                ).pack(pady=6)
 
-            elif current_screen == "profile":
-                tk.Button(navigation_frame, text="🏠 Home", command=lambda: self.show_frame("home"), **button_style).pack(pady=8)
-                tk.Button(navigation_frame, text="➕ Add Song", command=lambda: self.show_frame("add_song"), **button_style).pack(pady=8)
-
-            tk.Button(navigation_frame, text="🚪 Logout", command=self.logout, **button_style).pack(pady=8)
+            tk.Button(
+                navigation_frame,
+                text="🚪 Logout",
+                command=self.logout,
+                **button_style
+            ).pack(pady=6)
 
         except Exception as e:
             print(f"Error in add_navigation_buttons: {e}")
             messagebox.showerror("Error", f"Failed to create navigation buttons: {e}")
-
 
     def create_welcome_screen(self):
         """
@@ -534,7 +535,7 @@ class UserInterface:
             }
 
             tk.Button(row, text="Play", command=lambda: self.play_song(song_id), **btn_style).pack(side="left", padx=6)
-            tk.Button(row, text="Queue", command=lambda: self.add_song_to_queue(song_id), **btn_style).pack(side="left", padx=6)
+            tk.Button(row, text="Ad to Queue", command=lambda: self.add_song_to_queue(song_id), **btn_style).pack(side="left", padx=6)
 
             # Like button - לב אדום אם מאוהב, אפור אם לא
             liked = song_id in self.client.liked_song

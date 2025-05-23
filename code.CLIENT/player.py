@@ -1,84 +1,114 @@
 import pygame
 from time import sleep
 
+
 class MusicPlayer:
     def __init__(self):
-        pygame.mixer.init()
-        self.is_playing = False
-        self.is_paused = False
-        self.current_file = ""
-
-    def play_song(self, file_path ,cmd_queue):
         """
-        מנגן את השיר מהתחלה.
+        Initializes the pygame mixer and sets up the player state.
         """
-        pygame.mixer.music.load(file_path)
-        pygame.mixer.music.play()
-        self.current_file = file_path
-        self.is_playing = True
-        self.is_paused = False
-        print(f"🎵 מנגן: {file_path}")
+        try:
+            pygame.mixer.init()
+            self.is_playing = False
+            self.is_paused = False
+            self.current_file = ""
+        except pygame.error as e:
+            print(f"Failed to initialize mixer: {e}")
 
-        sleep(1)
-        while self.is_playing:
-            if not pygame.mixer.music.get_busy() and not self.is_paused:
-                self.is_playing = False
-                self.is_paused = False
-                self.current_file = ""
-                print("not busy")
-                pygame.mixer.music.unload()  # יש רק בגרסאות מסוימות של pygame
-                break
-            if not cmd_queue.empty():
-                print("new cmd")
-                pygame.mixer.music.unload()  # יש רק בגרסאות מסוימות של pygame
-                break
-            pygame.time.Clock().tick(30)
+    def play_song(self, file_path, cmd_queue):
+        """
+        Plays the specified song from the beginning.
 
+        :param file_path: Path to the audio file to be played.
+        :param cmd_queue: A queue to check for incoming commands (e.g., stop or change song).
+        """
+        try:
+            pygame.mixer.music.load(file_path)
+            pygame.mixer.music.play()
+            self.current_file = file_path
+            self.is_playing = True
+            self.is_paused = False
+            print(f"🎵 Playing: {file_path}")
 
+            sleep(1)
+            while self.is_playing:
+                if not pygame.mixer.music.get_busy() and not self.is_paused:
+                    self.is_playing = False
+                    self.is_paused = False
+                    self.current_file = ""
+                    print("Playback finished")
+                    try:
+                        pygame.mixer.music.unload()  # Available in some pygame versions
+                    except AttributeError:
+                        pass
+                    break
 
-        print("⏹️ השיר הסתיים.")
+                if not cmd_queue.empty():
+                    print("Received new command, stopping playback")
+                    try:
+                        pygame.mixer.music.unload()
+                    except AttributeError:
+                        pass
+                    break
 
+                pygame.time.Clock().tick(30)
+
+            print("⏹️ Song ended.")
+
+        except pygame.error as e:
+            print(f"Error playing song '{file_path}': {e}")
 
     def stop_song(self):
         """
-        עוצר את השיר לגמרי.
+        Stops the currently playing song completely.
         """
-
-        pygame.mixer.music.stop()
-        self.is_playing = False
-        self.is_paused = False
-        self.current_file= ""
-        print("⏹️ השיר נעצר.")
+        try:
+            pygame.mixer.music.stop()
+            self.is_playing = False
+            self.is_paused = False
+            self.current_file = ""
+            print("⏹️ Song stopped.")
+        except pygame.error as e:
+            print(f"Error stopping song: {e}")
 
     def pause_song(self):
         """
-        משהה את השיר.
+        Pauses the currently playing song.
         """
-        if self.is_playing and not self.is_paused:
-            pygame.mixer.music.pause()
-            self.is_paused = True
-            print("⏸️ השיר הושהה.")
-            print(self.is_paused)
+        try:
+            if self.is_playing and not self.is_paused:
+                pygame.mixer.music.pause()
+                self.is_paused = True
+                print("⏸️ Song paused.")
+                print(f"is_paused: {self.is_paused}")
+        except pygame.error as e:
+            print(f"Error pausing song: {e}")
 
     def resume_song(self):
         """
-        ממשיך לנגן שיר ממצב של השהייה.
+        Resumes playback of a paused song.
         """
-        if self.is_paused:
-            pygame.mixer.music.unpause()
-            self.is_paused = False
-            print("▶️ המשך ניגון.")
+        try:
+            if self.is_paused:
+                pygame.mixer.music.unpause()
+                self.is_paused = False
+                print("▶️ Playback resumed.")
+        except pygame.error as e:
+            print(f"Error resuming song: {e}")
 
     def shutdown(self):
         """
-        עוצר את הניגון, משחרר קבצים, וסוגר את המיקסר.
-            """
-        if self.is_playing or self.is_paused:
-            pygame.mixer.music.stop()
-            print("⏹️ השיר נעצר.")
-        pygame.mixer.quit()
-        self.is_playing = False
-        self.is_paused = False
-        self.current_file = None
-        print("🎧 הנגן נסגר וניקוי המשאבים הושלם.")
+        Stops playback, releases resources, and shuts down the mixer.
+        """
+        try:
+            if self.is_playing or self.is_paused:
+                pygame.mixer.music.stop()
+                print("⏹️ Song stopped.")
+            pygame.mixer.quit()
+            self.is_playing = False
+            self.is_paused = False
+            self.current_file = None
+            print("🎧 Player shut down and resources cleaned up.")
+        except pygame.error as e:
+            print(f"Error during shutdown: {e}")
 

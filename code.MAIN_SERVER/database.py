@@ -1,5 +1,11 @@
 import sqlite3
 import logging
+import os
+
+LOG_FORMAT = '%(levelname)s | %(asctime)s | %(message)s'
+LOG_LEVEL = logging.DEBUG
+LOG_DIR = 'log2'
+LOG_FILE = os.path.join(LOG_DIR, 'database.log')
 
 
 class DataBase:
@@ -46,9 +52,9 @@ class DataBase:
         try:
             self.cursor.execute(create_query)
             self.conn.commit()
-            print(f"{table_name} created successfully!")
+            logging.debug(f"{table_name} created successfully!")
         except sqlite3.OperationalError as err:
-            print(f"Error creating table: {err}")
+            logging.debug(f"Error creating table: {err}")
 
     def insert(self, table_name, data):
         """
@@ -71,9 +77,9 @@ class DataBase:
             self.cursor.execute(insert_query, list(data.values()))  # Pass values safely
             self.conn.commit()
         except sqlite3.IntegrityError as err:
-            print(f"Integrity error during insert: {err}")
+            logging.debug(f"Integrity error during insert: {err}")
         except sqlite3.OperationalError as err:
-            print(f"Operational error during insert: {err}")
+            logging.debug(f"Operational error during insert: {err}")
 
     def select(self, table_name, fields='*', where_condition={}, cond="And"):
         """
@@ -101,7 +107,7 @@ class DataBase:
             results = self.cursor.fetchall()
             return results
         except sqlite3.OperationalError as err:
-            print(f"Error executing SELECT query: {err}")
+            logging.debug(f"Error executing SELECT query: {err}")
             return None
 
     def update(self, table_name, updates, where):
@@ -131,19 +137,19 @@ class DataBase:
         values = set_values + where_values  # Combine update values and WHERE values
 
         try:
-            print("🔹 Query:", update_query)  # For debugging
-            print("🔹 Values:", values)  # For debugging
+            logging.debug("🔹 Query:", update_query)  # For debugging
+            logging.debug("🔹 Values:", values)  # For debugging
 
             self.cursor.execute(update_query, values)
             self.conn.commit()
-            print(f"✅ Successfully updated records in table {table_name}")
+            logging.debug(f"✅ Successfully updated records in table {table_name}")
 
         except sqlite3.OperationalError as err:
-            print(f"❌ SQLite OperationalError: {err}")
+            logging.debug(f"❌ SQLite OperationalError: {err}")
         except sqlite3.IntegrityError as err:
-            print(f"❌ SQLite IntegrityError: {err}")
+            logging.debug(f"❌ SQLite IntegrityError: {err}")
         except Exception as e:
-            print(f"❌ Unexpected error: {e}")
+            logging.debug(f"❌ Unexpected error: {e}")
 
     def delete(self, table_name, where):
         """
@@ -162,17 +168,63 @@ class DataBase:
         delete_query = f"DELETE FROM {table_name} WHERE {where_clause}"
 
         try:
-            print("🔹 Query:", delete_query)  # For debugging
-            print("🔹 Values:", where_values)  # For debugging
+            logging.debug("🔹 Query:", delete_query)  # For debugging
+            logging.debug("🔹 Values:", where_values)  # For debugging
 
             self.cursor.execute(delete_query, where_values)
             self.conn.commit()
-            print(f"✅ Successfully deleted records from table {table_name}")
+            logging.debug(f"✅ Successfully deleted records from table {table_name}")
 
         except sqlite3.OperationalError as err:
-            print(f"❌ SQLite OperationalError: {err}")
+            logging.debug(f"❌ SQLite OperationalError: {err}")
         except sqlite3.IntegrityError as err:
-            print(f"❌ SQLite IntegrityError: {err}")
+            logging.debug(f"❌ SQLite IntegrityError: {err}")
         except Exception as e:
-            print(f"❌ Unexpected error: {e}")
+            logging.debug(f"❌ Unexpected error: {e}")
 
+
+if __name__ == "__main__":
+    if not os.path.isdir(LOG_DIR):
+        os.makedirs(LOG_DIR)
+    logging.basicConfig(format=LOG_FORMAT, filename=LOG_FILE, level=LOG_LEVEL)
+    # מחיקת קובץ אם קיים
+    if os.path.exists("test_db.sqlite"):
+        os.remove("test_db.sqlite")
+
+    db = DataBase("test_db.sqlite")
+
+    # יצירת טבלה
+    db.create_table("users", {
+        "id": "INTEGER PRIMARY KEY AUTOINCREMENT",
+        "username": "TEXT NOT NULL UNIQUE",
+        "age": "INTEGER"
+    })
+
+    # בדיקת insert
+    db.insert("users", {"username": "alice", "age": 30})
+    result = db.select("users", where_condition={"username": "alice"})
+    assert len(result) == 1, "❌ שורה לא הוזנה"
+    assert result[0][1] == "alice", "❌ שם משתמש שגוי"
+    assert result[0][2] == 30, "❌ גיל שגוי"
+
+    # בדיקת update
+    db.update("users", {"age": 31}, {"username": "alice"})
+    result = db.select("users", where_condition={"username": "alice"})
+    assert result[0][2] == 31, "❌ עדכון גיל נכשל"
+
+    # בדיקת insert נוסף
+    db.insert("users", {"username": "bob", "age": 25})
+    db.insert("users", {"username": "charlie", "age": 28})
+    all_users = db.select("users")
+    assert len(all_users) == 3, f"❌ לא הוזנו כל המשתמשים (נמצאו {len(all_users)})"
+
+    # בדיקת delete
+    db.delete("users", {"username": "bob"})
+    usernames = [user[1] for user in db.select("users")]
+    assert "bob" not in usernames, "❌ המשתמש bob לא נמחק"
+
+    # בדיקת תנאי OR
+    result = db.select("users", where_condition={"username": "alice", "age": 28}, cond="OR")
+    assert len(result) >= 1, "❌ SELECT עם תנאי OR לא עבד"
+
+    logging.debug("✅ כל הבדיקות עברו בהצלחה.")

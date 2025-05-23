@@ -37,6 +37,16 @@ class MainServer:
         logging.basicConfig(format=self.LOG_FORMAT, filename=self.LOG_FILE, level=self.LOG_LEVEL)
 
     def logging_protocol(self, func, cmd, data):
+        """
+        Logs a debug message composed of the function name, command, and data items.
+
+        The message format is: "<func> : <cmd>, <data_item1>, <data_item2>, ...".
+        Bytes-type items in `data` are skipped and not included in the message.
+
+        :param func: Name of the function or operation (string).
+        :param cmd: Command or action description (string).
+        :param data: Iterable containing data items to log.
+        """
         try:
             msg = func + " : " + cmd
             for i in data:
