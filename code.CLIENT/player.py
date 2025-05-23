@@ -8,7 +8,7 @@ class MusicPlayer:
         self.is_paused = False
         self.current_file = ""
 
-    def play_song(self, file_path,cmd_queue):
+    def play_song(self, file_path ,cmd_queue):
         """
         מנגן את השיר מהתחלה.
         """

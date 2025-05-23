@@ -1,3 +1,4 @@
+import time
 import tkinter as tk
 from client_class import Client
 import queue
@@ -83,26 +84,36 @@ class UserInterface:
         :param current_screen: String identifier of the current screen ("home", "add_song", "profile").
         """
         try:
-            navigation_frame = tk.Frame(frame, bg="gray")
+            navigation_frame = tk.Frame(frame, bg="#ecf0f1")  # רקע אפור בהיר
             navigation_frame.pack(side="left", fill="y", padx=10, pady=10)
 
+            button_style = {
+                "bg": "#bdc3c7",
+                "fg": "black",
+                "font": ("Arial", 11),
+                "width": 18,
+                "relief": "flat",
+                "activebackground": "#95a5a6"
+            }
+
             if current_screen == "home":
-                tk.Button(navigation_frame, text="Go to Add Song", command=lambda: self.show_frame("add_song")).pack(pady=10)
-                tk.Button(navigation_frame, text="Go to Profile", command=lambda: self.show_frame("profile")).pack(pady=10)
+                tk.Button(navigation_frame, text="➕ Add Song", command=lambda: self.show_frame("add_song"), **button_style).pack(pady=8)
+                tk.Button(navigation_frame, text="👤 Profile", command=lambda: self.show_frame("profile"), **button_style).pack(pady=8)
 
             elif current_screen == "add_song":
-                tk.Button(navigation_frame, text="Go to Home", command=lambda: self.show_frame("home")).pack(pady=10)
-                tk.Button(navigation_frame, text="Go to Profile", command=lambda: self.show_frame("profile")).pack(pady=10)
+                tk.Button(navigation_frame, text="🏠 Home", command=lambda: self.show_frame("home"), **button_style).pack(pady=8)
+                tk.Button(navigation_frame, text="👤 Profile", command=lambda: self.show_frame("profile"), **button_style).pack(pady=8)
 
             elif current_screen == "profile":
-                tk.Button(navigation_frame, text="Go to Home", command=lambda: self.show_frame("home")).pack(pady=10)
-                tk.Button(navigation_frame, text="Go to Add Song", command=lambda: self.show_frame("add_song")).pack(pady=10)
+                tk.Button(navigation_frame, text="🏠 Home", command=lambda: self.show_frame("home"), **button_style).pack(pady=8)
+                tk.Button(navigation_frame, text="➕ Add Song", command=lambda: self.show_frame("add_song"), **button_style).pack(pady=8)
 
-            tk.Button(navigation_frame, text="Logout", command=self.logout).pack(pady=10)
+            tk.Button(navigation_frame, text="🚪 Logout", command=self.logout, **button_style).pack(pady=8)
 
         except Exception as e:
             print(f"Error in add_navigation_buttons: {e}")
             messagebox.showerror("Error", f"Failed to create navigation buttons: {e}")
+
 
     def create_welcome_screen(self):
         """
@@ -114,14 +125,50 @@ class UserInterface:
         :return: A Tkinter Frame object representing the welcome screen.
         """
         try:
-            frame = tk.Frame(self.root, bg="black")
-            tk.Label(frame, text="Welcome!", fg="white", bg="black", font=("Arial", 24)).pack(pady=20)
+            frame = tk.Frame(self.root, bg="#121212")
 
-            # Login button
-            tk.Button(frame, text="Login", command=lambda: self.show_frame("login")).pack(pady=10)
+            tk.Label(
+                frame,
+                text="Welcome!",
+                fg="#E0E0E0",
+                bg="#121212",
+                font=("Arial", 28, "bold")
+            ).pack(pady=30)
 
-            # Sign Up button
-            tk.Button(frame, text="Sign Up", command=lambda: self.show_frame("signup")).pack(pady=10)
+            # הגדרת רוחב אחיד לכל הכפתורים
+            btn_width = 15
+
+            login_btn = tk.Button(
+                frame,
+                text="Login",
+                command=lambda: self.show_frame("login"),
+                bg="#1E90FF",
+                fg="white",
+                font=("Arial", 14, "bold"),
+                activebackground="#1C86EE",
+                relief="flat",
+                padx=20,
+                pady=8,
+                cursor="hand2",
+                width=btn_width
+            )
+            login_btn.pack(pady=12)
+
+            signup_btn = tk.Button(
+                frame,
+                text="Sign Up",
+                command=lambda: self.show_frame("signup"),
+                bg="#32CD32",
+                fg="white",
+                font=("Arial", 14, "bold"),
+                activebackground="#2E8B57",
+                relief="flat",
+                padx=20,
+                pady=8,
+                cursor="hand2",
+                width=btn_width
+            )
+            signup_btn.pack(pady=12)
 
             return frame
 
@@ -139,37 +186,75 @@ class UserInterface:
         :return: A Tkinter Frame object representing the sign-up screen.
         """
         try:
-            frame = tk.Frame(self.root, bg="gray")
-            tk.Label(frame, text="Sign Up", font=("Arial", 20)).pack(pady=20)
+            frame = tk.Frame(self.root, bg="#2F2F2F")
 
-            # Text variables for user input
+            # מרכזים את כל התוכן במסגרת
+            content_frame = tk.Frame(frame, bg="#2F2F2F")
+            content_frame.pack(pady=40, padx=50)
+
+            # כותרת גדולה ומרכזית מעל תיבות הטקסט
+            tk.Label(
+                content_frame,
+                text="Sign Up",
+                font=("Arial", 24, "bold"),
+                fg="#F0F0F0",
+                bg="#2F2F2F"
+            ).pack(pady=(0, 30))
+
             username_var = tk.StringVar()
             password_var = tk.StringVar()
             confirm_password_var = tk.StringVar()
 
-            # Input fields
-            tk.Label(frame, text="Username").pack()
-            tk.Entry(frame, textvariable=username_var).pack(pady=5)
+            label_style = {"bg": "#2F2F2F", "fg": "#CCCCCC", "font": ("Arial", 12, "bold"), "anchor": "center"}
+            entry_style = {"bd": 2, "relief": "groove", "font": ("Arial", 12), "justify": "center"}
 
-            tk.Label(frame, text="Password").pack()
-            tk.Entry(frame, textvariable=password_var, show="*").pack(pady=5)
+            # תוויות ותיבות קלט ממורכזים
+            tk.Label(content_frame, text="Username", **label_style).pack(fill="x")
+            tk.Entry(content_frame, textvariable=username_var, **entry_style).pack(pady=6, fill="x")
 
-            tk.Label(frame, text="Confirm Password").pack()
-            tk.Entry(frame, textvariable=confirm_password_var, show="*").pack(pady=5)
+            tk.Label(content_frame, text="Password", **label_style).pack(fill="x")
+            tk.Entry(content_frame, textvariable=password_var, show="*", **entry_style).pack(pady=6, fill="x")
 
-            # Buttons
-            tk.Button(
-                frame,
+            tk.Label(content_frame, text="Confirm Password", **label_style).pack(fill="x")
+            tk.Entry(content_frame, textvariable=confirm_password_var, show="*", **entry_style).pack(pady=6, fill="x")
+
+            signup_btn = tk.Button(
+                content_frame,
                 text="Sign Up",
-                command=lambda: self.signup_action(username_var, password_var, confirm_password_var)
-            ).pack(pady=10)
-            tk.Button(frame, text="Back", command=lambda: self.show_frame("welcome")).pack(pady=5)
+                command=lambda: self.signup_action(username_var, password_var, confirm_password_var),
+                bg="#32CD32",
+                fg="white",
+                font=("Arial", 14, "bold"),
+                activebackground="#2E8B57",
+                relief="flat",
+                padx=20,
+                pady=8,
+                cursor="hand2",
+                width=20
+            )
+            signup_btn.pack(pady=15)
+
+            back_btn = tk.Button(
+                content_frame,
+                text="Back",
+                command=lambda: self.show_frame("welcome"),
+                bg="#A9A9A9",
+                fg="white",
+                font=("Arial", 12, "bold"),
+                activebackground="#808080",
+                relief="flat",
+                padx=15,
+                pady=6,
+                cursor="hand2",
+                width=10
+            )
+            back_btn.pack()
 
             return frame
 
         except Exception as e:
             print(f"[ERROR] Failed to create sign-up screen: {e}")
-            return tk.Frame(self.root)  # fallback to empty frame
+            return tk.Frame(self.root)
 
     def signup_action(self, username_var, password_var, confirm_password_var):
         """
@@ -225,30 +310,73 @@ class UserInterface:
         :return: A Tkinter Frame object representing the login screen.
         """
         try:
-            frame = tk.Frame(self.root, bg="gray")
-            tk.Label(frame, text="Login", font=("Arial", 20)).pack(pady=20)
+            frame = tk.Frame(self.root, bg="#2F2F2F")
 
-            # Text variables for username and password input
+            # מרכזים את כל התוכן במסגרת פנימית
+            content_frame = tk.Frame(frame, bg="#2F2F2F")
+            content_frame.pack(pady=40, padx=50)
+
+            # כותרת גדולה ומרכזית
+            tk.Label(
+                content_frame,
+                text="Login",
+                font=("Arial", 24, "bold"),
+                fg="#F0F0F0",
+                bg="#2F2F2F"
+            ).pack(pady=(0, 30))
+
             username_var = tk.StringVar()
             password_var = tk.StringVar()
 
-            # Username input field
-            tk.Label(frame, text="Username").pack()
-            tk.Entry(frame, textvariable=username_var).pack(pady=5)
+            label_style = {"bg": "#2F2F2F", "fg": "#CCCCCC", "font": ("Arial", 12, "bold"), "anchor": "center"}
+            entry_style = {"bd": 2, "relief": "groove", "font": ("Arial", 12), "justify": "center"}
 
-            # Password input field
-            tk.Label(frame, text="Password").pack()
-            tk.Entry(frame, textvariable=password_var, show="*").pack(pady=5)
+            # שדות קלט ממורכזים עם תוויות
+            tk.Label(content_frame, text="Username", **label_style).pack(fill="x")
+            tk.Entry(content_frame, textvariable=username_var, **entry_style).pack(pady=6, fill="x")
 
-            # Login and Back buttons
-            tk.Button(frame, text="Log In", command=lambda: self.login_action(username_var, password_var)).pack(pady=10)
-            tk.Button(frame, text="Back", command=lambda: self.show_frame("welcome")).pack(pady=5)
+            tk.Label(content_frame, text="Password", **label_style).pack(fill="x")
+            tk.Entry(content_frame, textvariable=password_var, show="*", **entry_style).pack(pady=6, fill="x")
+
+            btn_width = 20  # רוחב אחיד לכפתורים
+
+            login_btn = tk.Button(
+                content_frame,
+                text="Log In",
+                command=lambda: self.login_action(username_var, password_var),
+                bg="#1E90FF",
+                fg="white",
+                font=("Arial", 14, "bold"),
+                activebackground="#1C86EE",
+                relief="flat",
+                padx=20,
+                pady=8,
+                cursor="hand2",
+                width=btn_width
+            )
+            login_btn.pack(pady=15)
+
+            back_btn = tk.Button(
+                content_frame,
+                text="Back",
+                command=lambda: self.show_frame("welcome"),
+                bg="#A9A9A9",
+                fg="white",
+                font=("Arial", 12, "bold"),
+                activebackground="#808080",
+                relief="flat",
+                padx=15,
+                pady=6,
+                cursor="hand2",
+                width=10
+            )
+            back_btn.pack()
 
             return frame
 
         except Exception as e:
             print(f"[ERROR] Failed to create login screen: {e}")
-            return tk.Frame(self.root)  # fallback to empty frame
+            return tk.Frame(self.root)
 
     def login_action(self, username_var, password_var):
         """
@@ -301,7 +429,7 @@ class UserInterface:
         """
         try:
             # Main container
-            main_frame = tk.Frame(self.root, bg="white")
+            main_frame = tk.Frame(self.root, bg="#F9F9F9")
             main_frame.pack(side="top", fill="both", expand=True)
 
             # Left-side navigation
@@ -311,41 +439,61 @@ class UserInterface:
             self.create_music_player_bar(main_frame)
 
             # Main content area
-            content_frame = tk.Frame(main_frame, bg="white")
-            content_frame.pack(side="left", fill="both", expand=True, padx=20, pady=20)
+            content_frame = tk.Frame(main_frame, bg="#F9F9F9")
+            content_frame.pack(side="left", fill="both", expand=True, padx=25, pady=25)
 
             # Greeting header
             tk.Label(
                 content_frame,
                 text=f"Home - Hello {self.client.username}",
-                font=("Arial", 20),
-                bg="white"
+                font=("Helvetica", 22, "bold"),
+                bg="#F9F9F9",
+                fg="#333333"
             ).pack(anchor="w", pady=10)
 
             # Refresh row
-            refresh_frame = tk.Frame(content_frame, bg="white")
-            refresh_frame.pack(anchor="w", pady=(0, 10))
+            refresh_frame = tk.Frame(content_frame, bg="#F9F9F9")
+            refresh_frame.pack(anchor="w", pady=(0, 15))
 
-            tk.Label(refresh_frame, text="Refresh", font=("Arial", 12), bg="white").pack(side="left", padx=(0, 5))
-            tk.Button(refresh_frame, text="🔄", font=("Arial", 12), command=self.refresh_home_screen).pack(side="left")
+            tk.Label(refresh_frame, text="Refresh", font=("Helvetica", 13), bg="#F9F9F9", fg="#555555").pack(side="left", padx=(0, 6))
+            tk.Button(
+                refresh_frame,
+                text="🔄",
+                font=("Helvetica", 13),
+                bg="#D9EAF7",
+                fg="#1A73E8",
+                relief="flat",
+                command=self.refresh_home_screen,
+                cursor="hand2",
+                padx=8,
+                pady=4
+            ).pack(side="left")
 
             # Liked songs playlist
-            liked_frame = tk.Frame(content_frame, bg="white")
+            liked_frame = tk.Frame(content_frame, bg="#F9F9F9")
             liked_frame.pack(anchor="w", pady=10)
 
-            tk.Label(liked_frame, text="Liked Songs", font=("Arial", 14), bg="white").pack(side="left", padx=(0, 10))
+            tk.Label(liked_frame, text="Liked Songs", font=("Helvetica", 16, "bold"), bg="#F9F9F9", fg="#444444").pack(side="left", padx=(0, 12))
             tk.Button(
                 liked_frame,
                 text="🎵",
-                font=("Arial", 12),
-                command=lambda: self.play_playlist(self.client.liked_song)
+                font=("Helvetica", 14),
+                bg="#E3F2FD",
+                fg="#1A73E8",
+                relief="flat",
+                cursor="hand2",
+                command=lambda: self.play_playlist(self.client.liked_song),
+                padx=10,
+                pady=5
             ).pack(side="left")
 
             # Song list headers
-            header_row = tk.Frame(content_frame, bg="white")
-            header_row.pack(anchor="w", pady=5)
-            for header in ["Song Name", "Artist", "Play"]:
-                tk.Label(header_row, text=header, bg="white", font=("Arial", 12, "bold"), width=12, anchor="w").pack(side="left", padx=5)
+            header_row = tk.Frame(content_frame, bg="#F9F9F9")
+            header_row.pack(anchor="w", pady=8)
+
+            header_style = {"bg": "#F9F9F9", "font": ("Helvetica", 13, "bold"), "fg": "#222222", "width": 15, "anchor": "w"}
+            for header in ["Song Name", "Artist", "Play", "Queue", "Like"]:
+                tk.Label(header_row, text=header, **header_style).pack(side="left", padx=8)
 
             # Song entries
             for song_name, (artist, song_id) in self.client.song_id_dict.items():
@@ -367,23 +515,51 @@ class UserInterface:
         :param song_id: Song's unique identifier.
         """
         try:
-            row = tk.Frame(parent, bg="white")
-            row.pack(fill="x", pady=5)
+            row = tk.Frame(parent, bg="#FFFFFF")
+            row.pack(fill="x", pady=3)
 
-            tk.Label(row, text=song_name, bg="white", font=("Arial", 12), width=12, anchor="w").pack(side="left", padx=5)
-            tk.Label(row, text=artist, bg="white", font=("Arial", 12), width=12, anchor="w").pack(side="left", padx=5)
+            label_style = {"bg": "#FFFFFF", "font": ("Helvetica", 12), "width": 15, "anchor": "w", "fg": "#333333"}
+            tk.Label(row, text=song_name, **label_style).pack(side="left", padx=6)
+            tk.Label(row, text=artist, **label_style).pack(side="left", padx=6)
 
-            tk.Button(row, text="play", command=lambda: self.play_song(song_id)).pack(side="left", padx=5)
-            tk.Button(row, text="add to queue", command=lambda: self.add_song_to_queue(song_id)).pack(side="left", padx=5)
+            btn_style = {
+                "bg": "#1E90FF",  # כחול אחיד לכל הכפתורים
+                "fg": "white",
+                "font": ("Helvetica", 10, "bold"),
+                "relief": "flat",
+                "cursor": "hand2",
+                "padx": 8,
+                "pady": 3,
+                "width": 7,
+            }
 
+            tk.Button(row, text="Play", command=lambda: self.play_song(song_id), **btn_style).pack(side="left", padx=6)
+            tk.Button(row, text="Queue", command=lambda: self.add_song_to_queue(song_id), **btn_style).pack(side="left", padx=6)
+
+            # Like button - לב אדום אם מאוהב, אפור אם לא
             liked = song_id in self.client.liked_song
             like_text = "❤" if liked else "🤍"
-            like_button = tk.Button(row, text=like_text)
+            like_fg = "#E53935" if liked else "#888888"  # אדום עז / אפור כהה
+
+            like_button = tk.Button(
+                row,
+                text=like_text,
+                bg="#FFFFFF",  # רקע לבן פשוט
+                fg=like_fg,
+                font=("Helvetica", 14),
+                relief="flat",
+                cursor="hand2",
+                width=3,
+                bd=0,
+                highlightthickness=0,
+            )
             like_button.config(command=lambda: self.like_song(song_id, like_button))
-            like_button.pack(side="left", padx=5)
+            like_button.pack(side="left", padx=6)
+
         except Exception as e:
             print(f"Error in creating song row: {e}")
             messagebox.showerror("Error", f"Failed to create song row: {e}")
+
 
     def add_song_to_queue(self, song_id):
         """
@@ -437,13 +613,13 @@ class UserInterface:
             if song_id in self.client.liked_song:
                 result = self.client.song_and_playlist("remove", "liked_song", song_id)
                 if result[0] == "T":
-                    like_button.config(text="🤍")
+                    like_button.config(text="🤍", fg="#888888")
                 elif result[0] == "F":
                     messagebox.showerror("Error", result[1])
             else:
                 result = self.client.song_and_playlist("add", "liked_song", song_id)
                 if result[0] == "T":
-                    like_button.config(text="❤")
+                    like_button.config(text="❤", fg="#E53935")
                 elif result[0] == "F":
                     messagebox.showerror("Error", result[1])
 
@@ -487,37 +663,42 @@ class UserInterface:
         artist name, and file path, along with navigation buttons.
         """
         try:
-            frame = tk.Frame(self.root, bg="white")
+            frame = tk.Frame(self.root, bg="#f0f0f0")  # רקע קליל ונעים
 
-            # Add navigation buttons on the left
+            # הוספת כפתורי ניווט בצד שמאל
             self.add_navigation_buttons(frame, "add_song")
 
-            # Main content frame for title and input fields
-            content_frame = tk.Frame(frame, bg="white")
+            # אזור התוכן המרכזי
+            content_frame = tk.Frame(frame, bg="#f0f0f0")
             content_frame.pack(side="left", fill="both", expand=True, padx=20, pady=20)
 
-            # Title label
-            tk.Label(content_frame, text="Add Song", font=("Arial", 20), bg="white").pack(anchor="w", pady=10)
+            # כותרת
+            tk.Label(content_frame, text="Add Song", font=("Arial", 20), bg="#f0f0f0").pack(anchor="w", pady=10)
 
-            # Variables to hold input data
+            # משתנים לשדות הקלט
             song_name_var = tk.StringVar()
             artist_name_var = tk.StringVar()
             song_path_var = tk.StringVar()
 
-            # Song Name input
-            tk.Label(content_frame, text="Song Name:", bg="white").pack(anchor="w", padx=10)
+            # שדות קלט עם תוויות פשוטות
+            tk.Label(content_frame, text="Song Name:", bg="#f0f0f0").pack(anchor="w")
             tk.Entry(content_frame, textvariable=song_name_var, width=50).pack(pady=5)
 
-            # Artist Name input
-            tk.Label(content_frame, text="Artist Name:", bg="white").pack(anchor="w", padx=10)
+            tk.Label(content_frame, text="Artist Name:", bg="#f0f0f0").pack(anchor="w")
             tk.Entry(content_frame, textvariable=artist_name_var, width=50).pack(pady=5)
 
-            # Song File Path input
-            tk.Label(content_frame, text="Song File Path:", bg="white").pack(anchor="w", padx=10)
+            tk.Label(content_frame, text="Song File Path:", bg="#f0f0f0").pack(anchor="w")
             tk.Entry(content_frame, textvariable=song_path_var, width=50).pack(pady=5)
 
-            # Upload button
-            tk.Button(content_frame, text="Upload Song", command=lambda: self.upload_song_action(song_name_var, artist_name_var, song_path_var)).pack(pady=15)
+            # כפתור העלאה עם צבע רקע וניגודיות
+            tk.Button(
+                content_frame,
+                text="Upload Song",
+                bg="#4CAF50",
+                fg="white",
+                font=("Arial", 12, "bold"),
+                command=lambda: self.upload_song_action(song_name_var, artist_name_var, song_path_var)
+            ).pack(pady=15)
 
             return frame
 
@@ -561,36 +742,59 @@ class UserInterface:
         """
         Creates the profile screen frame displaying user info and liked songs.
         Includes navigation buttons on the left side.
-
-        :return: The main tkinter Frame for the profile screen.
         """
         try:
             frame = tk.Frame(self.root, bg="white")
 
-            # Add navigation buttons on the left
+            # Navigation
             self.add_navigation_buttons(frame, "profile")
 
-            # Main content frame for profile details
+            # Content
             content_frame = tk.Frame(frame, bg="white")
             content_frame.pack(side="left", fill="both", expand=True, padx=20, pady=20)
 
-            # Title label
-            tk.Label(content_frame, text="My Profile", font=("Arial", 20), bg="white").pack(anchor="w", pady=10)
+            # Title
+            tk.Label(
+                content_frame,
+                text="My Profile",
+                font=("Arial", 20, "bold"),
+                fg="#2c3e50",
+                bg="white"
+            ).pack(anchor="w", pady=10)
 
-            liked_frame = tk.Frame(content_frame, bg="white")
-            liked_frame.pack(fill="x", pady=(10, 5))
+            # Section Title
+            tk.Label(
+                content_frame,
+                text="Liked Songs",
+                font=("Arial", 16, "bold"),
+                fg="#1abc9c",
+                bg="white"
+            ).pack(anchor="w", pady=(10, 5))
 
-            tk.Label(liked_frame, text="Liked Songs", font=("Arial", 16), bg="white").pack(side="left", padx=(0, 10))
+            # Liked Songs List
+            for song_id in self.client.liked_song:
+                for song_name, (artist, sid) in self.client.song_id_dict.items():
+                    if sid == song_id:
+                        song_row = tk.Frame(content_frame, bg="#f7f7f7")
+                        song_row.pack(fill="x", pady=3, padx=5)
 
-            # Display liked songs with their artist
-            for song in self.client.liked_song:
-                for song_name, (artist, song_id) in self.client.song_id_dict.items():
-                    if song_id == song:
-                        song_row = tk.Frame(content_frame, bg="white")
-                        song_row.pack(fill="x", pady=5)
+                        tk.Label(
+                            song_row,
+                            text=song_name,
+                            bg="#f7f7f7",
+                            font=("Arial", 12),
+                            width=20,
+                            anchor="w"
+                        ).pack(side="left", padx=5)
 
-                        tk.Label(song_row, text=song_name, bg="white", font=("Arial", 12), width=12, anchor="w").pack(side="left", padx=5)
-                        tk.Label(song_row, text=artist, bg="white", font=("Arial", 12), width=12, anchor="w").pack(side="left", padx=5)
+                        tk.Label(
+                            song_row,
+                            text=artist,
+                            bg="#f7f7f7",
+                            font=("Arial", 12),
+                            width=20,
+                            anchor="w"
+                        ).pack(side="left", padx=5)
 
             return frame
 
@@ -621,7 +825,7 @@ class UserInterface:
         try:
             print("closing")
             self.client.gui_to_client_queue.put("shutdown")
-            self.client.delete_files()
+            #self.client.delete_files()
             self.client.exit()
         except Exception as e:
             print(f"Error during closing: {e}")

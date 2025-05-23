@@ -1,3 +1,6 @@
+import socket
+
+
 def protocol_send(my_socket, cmd, data):
     try:
         #msg = cmd + "!" + str(len(data))
@@ -24,6 +27,8 @@ def protocol_send(my_socket, cmd, data):
         my_socket.send(msg)
     except Exception as e:  # תפיסת כל סוגי החריגות
         print(f"exception in sending protocol {e}")
+    except socket.timeout as e:
+        print("Timeout occurred while waiting for response")
 
 
 def protocol_receive(my_socket):

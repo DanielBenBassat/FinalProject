@@ -10,6 +10,7 @@ import os
 from songs_queue import SongsQueue
 from player import MusicPlayer
 
+CACHE_FOLDER = r"C:\work\cyber\FinalProject\code.CLIENT\cache"
 LOG_DIR = 'log'
 LOG_FILE_CLIENT = os.path.join(LOG_DIR, 'client.log')
 LOG_FILE_PLAYER = os.path.join(LOG_DIR, 'player.log')
@@ -36,8 +37,11 @@ class Client:
             context.check_hostname = False
             context.verify_mode = ssl.CERT_NONE
             temp_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+
             self.main_socket = context.wrap_socket(temp_socket, server_hostname=ip)
             self.main_socket.connect(self.MAIN_SERVER_ADDR)
+            self.main_socket.settimeout(5)
+
 
             self.q = SongsQueue()
             self.p = MusicPlayer()
@@ -252,7 +256,7 @@ class Client:
         :return: str - The filename if the song was successfully downloaded and saved,
                        or "error" if there was a failure.
         """
-        file_name = "error"
+        file_path = "error"
         try:
             media_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
             media_socket.connect(server_address)
@@ -273,8 +277,9 @@ class Client:
                 self.client_log.warning(f"Failed to get song: {data[1]}")
             else:
                 file_name = data[1]
-                if file_name != "not found":
-                    with open(file_name, 'wb') as file:
+                if file_name != "file not found":
+                    file_path = os.path.join(CACHE_FOLDER, file_name)
+                    with open(file_path, 'wb') as file:
                         file.write(data[2])
                     self.client_log.debug(f"File saved as {file_name}")
                 else:
@@ -287,7 +292,7 @@ class Client:
             self.client_log.error(f"Unexpected error in get_song: {e}")
 
         finally:
-            return file_name
+            return file_path
 
     def upload_song(self, song_name, artist, file_path):
         """
@@ -663,6 +668,7 @@ class Client:
 
             elif cmd == "shutdown":
                 self.p.shutdown()
+                self.delete_files()
                 self.player_log.debug("shut down: ")
                 break
 
@@ -698,7 +704,6 @@ class Client:
         msg = f"paused: {self.p.is_paused}::::: recent: {self.q.recent_song_path}, previous: {self.q.prev_song_path}, old: {self.q.old_song_path}, queue: {msg_queue}"
         self.player_log.debug(msg)
 
-
     def delete_files(self):
         """
         Deletes temporary or old song files stored in the queue and other tracked paths.
@@ -717,6 +722,7 @@ class Client:
             if os.path.exists(self.q.prev_song_path):
                 os.remove(self.q.prev_song_path)
             if os.path.exists(self.q.recent_song_path):
+                print(self.q.recent_song_path)
                 os.remove(self.q.recent_song_path)
         except Exception as e:
             self.player_log.error(f"Error deleting files: {e}")
