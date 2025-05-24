@@ -404,7 +404,6 @@ class UserInterface:
 
             # Send login request to the server
             data = self.client.start_client("2", username, hashed_password)
-
             # Handle server response
             if data[0] == "T":
                 self.show_frame("home")
@@ -560,7 +559,6 @@ class UserInterface:
         except Exception as e:
             print(f"Error in creating song row: {e}")
             messagebox.showerror("Error", f"Failed to create song row: {e}")
-
 
     def add_song_to_queue(self, song_id):
         """
@@ -826,7 +824,6 @@ class UserInterface:
         try:
             print("closing")
             self.client.gui_to_client_queue.put("shutdown")
-            #self.client.delete_files()
             self.client.exit()
         except Exception as e:
             print(f"Error during closing: {e}")
@@ -834,115 +831,104 @@ class UserInterface:
             print("good bye")
             self.root.destroy()
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
+# ***********************************************************************************
     def create_music_player_bar(self, main_frame):
-        music_player = tk.Frame(main_frame, bg="blue", height=60)
-        music_player.pack(side="bottom", fill="x")
+        """
+        Creates the bottom music player bar with previous, play/pause, and next buttons.
+        """
+        try:
+            music_player = tk.Frame(main_frame, bg="blue", height=60)
+            music_player.pack(side="bottom", fill="x")
 
-        # פריים פנימי שמרכז את כפתור ההפעלה
-        controls_frame = tk.Frame(music_player, bg="blue")
-        controls_frame.pack(side="top", fill="x", expand=True)
+            # Controls container
+            controls_frame = tk.Frame(music_player, bg="blue")
+            controls_frame.pack(side="top", fill="x", expand=True)
 
-        # כפתור שיר קודם - מצד שמאל
-        tk.Button(controls_frame, text="⏮", font=("Arial", 16), command=self.prev_song).pack(side="left", padx=20, pady=10)
 
-        # כפתור הפעלה/השהיה - במרכז
-        self.play_pause_button = tk.Button(controls_frame, text="▶", font=("Arial", 16), command=lambda: self.play_pause())
-        self.play_pause_button.pack(side="left", padx=20, pady=10, expand=True)
 
-    # כפתור שיר הבא - מצד ימין
-        tk.Button(controls_frame, text="⏭", font=("Arial", 16), command=self.next_song).pack(side="left", padx=20, pady=10)
+            # Play/Pause button
+            play_pause_button = tk.Button(controls_frame, text="▶", font=("Arial", 16), command=lambda: self.play_pause())
+            play_pause_button.pack(side="left", padx=20, pady=10, expand=True)
+
+            # Previous song button
+            tk.Button(controls_frame, text="⏮", font=("Arial", 16), command=self.prev_song).pack(side="left", padx=20, pady=10)
+            # Next song button
+            tk.Button(controls_frame, text="⏭", font=("Arial", 16), command=self.next_song).pack(side="left", padx=20, pady=10)
+
+        except Exception as e:
+            print(f"Error creating music player bar: {e}")
+            messagebox.showerror("Error", f"Failed to create music player bar: {e}")
+
     def prev_song(self):
-        print("prev song")
-        if self.client.q.prev_song_path != "":
-            print(self.client.q.prev_song_path)
-            self.client.gui_to_client_queue.put("prev")
-            self.playing = True
-            self.play_pause_button.config(text="⏹")
-
+        """
+        Plays the previous song if one exists.
+        Sends a 'prev' command to the client via queue and updates the UI.
+        """
+        try:
+            print("prev song")
+            if self.client.q.prev_song_path != "":
+                print(self.client.q.prev_song_path)
+                self.client.gui_to_client_queue.put("prev")
+                self.playing = True
+                self.play_pause_button.config(text="⏹")
+        except Exception as e:
+            print(f"Error in prev_song: {e}")
+            messagebox.showerror("Error", f"Failed to play previous song: {e}")
 
     def next_song(self):
-        print("next song")
-        if not self.client.q.my_queue.empty():
-            self.playing = True
-            self.play_pause_button.config(text="⏹")
-            self.client.gui_to_client_queue.put("next")
-
-        print(self.playing)
+        """
+        Plays the next song in the queue if available.
+        Sends a 'next' command to the client via queue and updates the UI.
+        """
+        try:
+            print("next song")
+            if not self.client.q.my_queue.empty():
+                self.playing = True
+                self.play_pause_button.config(text="⏹")
+                self.client.gui_to_client_queue.put("next")
+            print(self.playing)
+        except Exception as e:
+            print(f"Error in next_song: {e}")
+            messagebox.showerror("Error", f"Failed to play next song: {e}")
 
     def play_pause(self):
-        print(self.playing)
-        print(self.client.q.my_queue.empty())
-        if not self.playing:
-            if not (self.client.q.my_queue.empty() and self.client.p.current_file == ""):
-                print(self.client.p.current_file)
-                self.play_pause_button.config(text="⏹")
-                if self.counter == 0:
-                    self.client.gui_to_client_queue.put("play")
-                else:
-                    self.client.gui_to_client_queue.put("resume")
+        """
+        Toggles between play and pause.
+        Sends 'play', 'resume', or 'pause' command via the client queue based on the current state.
+        """
+        try:
+            print(self.playing)
+            print(self.client.q.my_queue.empty())
 
-                self.counter = 1 + self.counter
+            if not self.playing:
+                if not (self.client.q.my_queue.empty() and self.client.p.current_file == ""):
+                    print(self.client.p.current_file)
+                    self.play_pause_button.config(text="⏹")
 
-                self.master.after(100, self.check_result_queue)  # המשך לבדוק כל 100ms
+                    if self.counter == 0:
+                        self.client.gui_to_client_queue.put("play")
+                    else:
+                        self.client.gui_to_client_queue.put("resume")
 
-                self.playing = not self.playing
+                    self.counter += 1
+                    self.master.after(100, self.check_result_queue)
+                    self.playing = True
 
-        elif self.playing:
-            self.play_pause_button.config(text="▶")
-            self.client.gui_to_client_queue.put("pause")
+            else:  # currently playing
+                self.play_pause_button.config(text="▶")
+                self.client.gui_to_client_queue.put("pause")
+                self.playing = False
 
-            self.playing = not self.playing
-
-
+        except Exception as e:
+            print(f"Error in play_pause: {e}")
+            messagebox.showerror("Error", f"Failed to toggle play/pause: {e}")
 
     def check_result_queue(self):
+        """
+        Checks for messages from the client thread to the GUI.
+        If 'nothing to play' is received, stops playback and updates UI.
+        If no message, checks again after 100ms.
+        """
         try:
             result = self.client.client_to_gui_queue.get_nowait()
             print("Result from thread:", result)
@@ -955,18 +941,17 @@ class UserInterface:
 
     def start(self):
         """
-        התחלת הלולאה של tkinter.
+        start tkinter loop
         """
-        self.root.geometry("700x600")  # הגדרת גודל החלון
-        self.root.mainloop()  # התחלת הלולאה של tkinter
+        self.root.geometry("700x600")
+        self.root.mainloop()
 
 
 if __name__ == "__main__":
     try:
         client1 = Client(IP, PORT)
         root1 = tk.Tk()
-        app = UserInterface(root1, client1)  # �
+        app = UserInterface(root1, client1)
         app.start()
     except Exception as error:
         print(error)
-

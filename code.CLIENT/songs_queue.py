@@ -27,7 +27,6 @@ class SongsQueue:
     def get_song(self, cmd):
         """
         Gets the next song path from the queue, or returns previous song if cmd == "prev".
-
         :param cmd: Command to determine whether to get previous song ("prev") or next song.
         :return: Path to the song file.
         """

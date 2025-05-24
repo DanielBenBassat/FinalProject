@@ -1,5 +1,5 @@
 import socket
-
+import ssl
 
 def protocol_send(my_socket, cmd, data):
     try:
@@ -25,61 +25,60 @@ def protocol_send(my_socket, cmd, data):
             temp = sign + i_length + "!"
             msg += temp.encode() + encoded_data
         my_socket.send(msg)
-    except Exception as e:  # תפיסת כל סוגי החריגות
-        print(f"exception in sending protocol {e}")
-    except socket.timeout as e:
+
+    except socket.timeout:
         print("Timeout occurred while waiting for response")
+        raise  # תזרוק את השגיאה למעלה, שה-caller יתמודד
+
+    except ssl.SSLError as e:
+        print(f"SSL error: {e}")
+        raise  # תאפשר ל-caller להחזיר 'F' או להציג למשתמש
+
 
 
 def protocol_receive(my_socket):
     try:
-        #b = my_socket.recv(1).decode()
-        #if b != '':
-        #    cmd = ''
-         #   while b != '!':
-         #       cmd += b
-          #      b = my_socket.recv(1).decode()
-            #print("cmd: receive " + cmd)
-            cmd = ""
-            while len(cmd) < 3:
+        cmd = ""
+        while len(cmd) < 3:
+            b = my_socket.recv(1).decode()
+            if b is not None:
+                cmd += b
+
+        num_of_items = my_socket.recv(1).decode()
+        data = []
+        num_of_items = int(num_of_items)
+        for i in range(num_of_items):
+            sign = my_socket.recv(1).decode()
+            i_length = ""
+            b = my_socket.recv(1).decode()
+            while b != '!':
+                i_length += b
                 b = my_socket.recv(1).decode()
-                if b is not None:
-                    cmd += b
+            if sign == 'b':
+                item = b''
+                while len(item) < int(i_length):
+                    item += my_socket.recv(int(i_length) - len(item))
+                data.append(item)
+            elif sign == 's':
+                item = ''
+                for j in range(int(i_length)):
+                    item += my_socket.recv(1).decode()
+                data.append(item)
 
-            print("cmd: " + cmd)
+        return cmd, data
 
-            num_of_items = my_socket.recv(1).decode()
-            data = []
-            num_of_items = int(num_of_items)
-            for i in range(num_of_items):
-                sign = my_socket.recv(1).decode()
-                #print("sign: " + sign)
-                i_length = ""
-                b = my_socket.recv(1).decode()
-                while b != '!':
-                    i_length += b
-                    b = my_socket.recv(1).decode()
-                if sign == 'b':
-                    item = b''
-                    print("receiving bytes")
-                    print(i_length)
-                    while len(item) < int(i_length):
-                        item += my_socket.recv(int(i_length)-len(item))
-                        print()
-                    print("finish receiving")
-                    data.append(item)
+    except socket.timeout:
+        print("socket timeout over")
+        return "error", ["timeout"]
 
-                elif sign == 's':
-                    item = ''
-                    for j in range(int(i_length)):
-                        item += my_socket.recv(1).decode()
-                    #print("item: " + item)
-                    data.append(item)
-            result = (cmd, data)
-            return result
+    except ssl.SSLError as e:
+        print(f"SSL error during receive: {e}")
+        return "error", [f"ssl error: {e}"]
+
     except Exception as e:
         print("Error in protocol_receive:", e)
-        return "error", ["error"]
+        return "error", [str(e)]
+
 
 
 

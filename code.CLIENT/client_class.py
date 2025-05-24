@@ -42,7 +42,6 @@ class Client:
             self.main_socket.connect(self.MAIN_SERVER_ADDR)
             self.main_socket.settimeout(5)
 
-
             self.q = SongsQueue()
             self.p = MusicPlayer()
             self.client_to_gui_queue = queue.Queue()
@@ -177,7 +176,6 @@ class Client:
         except (ConnectionError, OSError) as net_err:
             self.client_log.debug(f"[ERROR] Network error: {net_err}")
             data = ["F", "Network error"]
-
         except pickle.PickleError as pickle_err:
             self.client_log.debug(f"[ERROR] Data decoding error: {pickle_err}")
             data = ["F", "Data decoding error"]
@@ -244,7 +242,6 @@ class Client:
 
         except Exception as e:
             self.client_log.error(f"Error in get_address for song_id {song_id}: {e}")
-            # מחזיר תגובה שמדגימה כישלון כדי שהקריאה בפונקציה שמעבירה את התוצאה תוכל לטפל בזה
             return ["F", f"Exception occurred: {str(e)}"]
 
     def get_song(self, song_id, server_address):
@@ -630,9 +627,6 @@ class Client:
             self.client_log.debug(f"Error in play_playlist: {e}")
             print(f"Failed to play playlist: {e}")
 
-
-
-
     def player_func(self):
         print("player_thread")
         while True: # and not self.is_expired:
@@ -642,7 +636,6 @@ class Client:
             play = False
             if cmd == "play":
                 play = True
-
             if cmd == "pause":
                 self.p.pause_song()
                 self.player_log.debug("pause song: ")
@@ -716,7 +709,6 @@ class Client:
                 if os.path.exists(file_path):
                     os.remove(file_path)
 
-            # Remove additional tracked files if they exist
             if os.path.exists(self.q.old_song_path):
                 os.remove(self.q.old_song_path)
             if os.path.exists(self.q.prev_song_path):
