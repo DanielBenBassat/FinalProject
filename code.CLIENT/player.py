@@ -45,10 +45,6 @@ class MusicPlayer:
 
                 if not cmd_queue.empty():
                     print("Received new command, stopping playback")
-                    try:
-                        pygame.mixer.music.unload()
-                    except AttributeError:
-                        pass
                     break
 
                 pygame.time.Clock().tick(30)
@@ -93,6 +89,7 @@ class MusicPlayer:
                 pygame.mixer.music.unpause()
                 self.is_paused = False
                 print("▶️ Playback resumed.")
+                print(f"After unpause: busy={pygame.mixer.music.get_busy()}")
         except pygame.error as e:
             print(f"Error resuming song: {e}")
 

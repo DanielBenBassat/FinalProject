@@ -79,7 +79,7 @@ class MainServer:
         token2 = self.generate_token("media_server")
         while True:
             db.check_server(token)
-            db.verify(token)
+            db.verify_songs(token)
             db.backup_songs(token, token2)
             time.sleep(15)
 

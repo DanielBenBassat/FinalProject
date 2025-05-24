@@ -7,8 +7,10 @@ from protocol import protocol_receive
 import threading
 import pickle
 import os
+import shutil
 from songs_queue import SongsQueue
 from player import MusicPlayer
+
 
 CACHE_FOLDER = r"C:\work\cyber\FinalProject\code.CLIENT\cache"
 LOG_DIR = 'log'
@@ -28,6 +30,8 @@ class Client:
         try:
             if not os.path.isdir(LOG_DIR):
                 os.makedirs(LOG_DIR)
+            if not os.path.exists(CACHE_FOLDER):
+                os.mkdir(CACHE_FOLDER)
 
             self.client_log = self.setup_logger("ClientLogger", LOG_FILE_CLIENT)
             self.player_log = self.setup_logger("PlayerLogger", LOG_FILE_PLAYER)

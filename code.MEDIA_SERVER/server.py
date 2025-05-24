@@ -16,10 +16,10 @@ class MediaServer:
         self.log_dir = log_dir
         self.log_file = os.path.join(log_dir, log_file)
 
-        self._setup_environment()
+        self._setup_folders()
         self._setup_logging()
 
-    def _setup_environment(self):
+    def _setup_folders(self):
         if not os.path.exists(self.folder):
             os.makedirs(self.folder)
         if not os.path.exists(self.log_dir):

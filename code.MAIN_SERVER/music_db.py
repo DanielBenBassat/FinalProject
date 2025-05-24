@@ -424,7 +424,7 @@ class MusicDB(DataBase):
             fallen_servers = self.select("servers", "*", {})
             self.task_log.debug(f"Current servers state: {fallen_servers}")
 
-    def verify(self, token):
+    def verify_songs(self, token):
         """
         Verify songs that are in 'pending' status and update their status if available.
 
@@ -454,7 +454,7 @@ class MusicDB(DataBase):
 
                     if setting != "":
                         self.task_log.debug(f"Verifying song_id {song_id} at {ip1}:{port1} ({setting})")
-                        result = self.verify_func(token, song_id, (ip1, int(port1)))
+                        result = self.verify_songs_func(token, song_id, (ip1, int(port1)))
                         self.task_log.debug(f"Verification result for song_id {song_id}: {result}")
 
                         if result[1] == "found":
@@ -481,7 +481,7 @@ class MusicDB(DataBase):
             self.task_log.error(err_msg)
             print(err_msg)
 
-    def verify_func(self, token, song_id, server_address):
+    def verify_songs_func(self, token, song_id, server_address):
         """
         Verify availability of a song file on a media server.
 

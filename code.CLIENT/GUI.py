@@ -834,30 +834,37 @@ class UserInterface:
 # ***********************************************************************************
     def create_music_player_bar(self, main_frame):
         """
-        Creates the bottom music player bar with previous, play/pause, and next buttons.
+        Creates the music player bar at the bottom of the main frame with
+        buttons for previous song (left), play/pause (center), and next song (right),
+        using only pack geometry manager.
         """
         try:
             music_player = tk.Frame(main_frame, bg="blue", height=60)
             music_player.pack(side="bottom", fill="x")
 
-            # Controls container
             controls_frame = tk.Frame(music_player, bg="blue")
             controls_frame.pack(side="top", fill="x", expand=True)
 
+            # Previous song button - packed to left
+            tk.Button(controls_frame, text="⏮", font=("Arial", 16),
+                      command=self.prev_song).pack(side="left", padx=20, pady=10)
 
+            # Play/pause button wrapped in a frame, packed to left with expand to center it
+            center_frame = tk.Frame(controls_frame, bg="blue")
+            center_frame.pack(side="left", expand=True)
 
-            # Play/Pause button
-            play_pause_button = tk.Button(controls_frame, text="▶", font=("Arial", 16), command=lambda: self.play_pause())
-            play_pause_button.pack(side="left", padx=20, pady=10, expand=True)
+            self.play_pause_button = tk.Button(center_frame, text="▶", font=("Arial", 16),
+                                               command=self.play_pause)
+            self.play_pause_button.pack(padx=20, pady=10)
 
-            # Previous song button
-            tk.Button(controls_frame, text="⏮", font=("Arial", 16), command=self.prev_song).pack(side="left", padx=20, pady=10)
-            # Next song button
-            tk.Button(controls_frame, text="⏭", font=("Arial", 16), command=self.next_song).pack(side="left", padx=20, pady=10)
+            # Next song button - packed to right
+            tk.Button(controls_frame, text="⏭", font=("Arial", 16),
+                      command=self.next_song).pack(side="right", padx=20, pady=10)
 
         except Exception as e:
-            print(f"Error creating music player bar: {e}")
-            messagebox.showerror("Error", f"Failed to create music player bar: {e}")
+            print(f"Error in create_music_player_bar: {e}")
+            messagebox.showerror("Error", f"Failed to create music bar: {e}")
+
 
     def prev_song(self):
         """
