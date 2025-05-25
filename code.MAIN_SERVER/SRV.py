@@ -41,6 +41,11 @@ class MainServer:
         self.context = ssl.SSLContext(ssl.PROTOCOL_TLS_SERVER)
         self.context.load_cert_chain(certfile=self.CERT_FILE, keyfile=self.KEY_FILE)
 
+        # contex2 for the action that the mian server connecting to other server
+        self.context2 = ssl.SSLContext(ssl.PROTOCOL_TLS_CLIENT)
+        self.context2.check_hostname = False
+        self.context2.verify_mode = ssl.CERT_NONE
+
     def _setup_logging(self):
         try:
             if not os.path.isdir(self.LOG_DIR):

@@ -4,21 +4,27 @@ import threading
 import jwt
 import logging
 from protocol import protocol_receive, protocol_send
+import ssl
 
 
 class MediaServer:
-    def __init__(self, ip, port, folder, secret_key, queue_len=1, log_dir='logs', log_file='server.log'):
+    def __init__(self, ip, port, folder, secret_key, cert_file, key_file, queue_len=1, log_dir='logs', log_file='server.log'):
         """
-        Initializes the MediaServer with network, storage, and logging parameters.
-
-        :param ip: Server IP address to bind to.
-        :param port: Server port to listen on.
-        :param folder: Path to the folder where songs are stored.
-        :param secret_key: Secret key used for JWT token verification.
-        :param queue_len: Max number of queued client connections.
-        :param log_dir: Directory where logs are saved.
-        :param log_file: Log file name.
-        """
+       Initializes the MediaServer with networking configuration, 
+       folder for storing songs, SSL settings, and logging.
+    
+       :param ip: str - The IP address the server binds to.
+       :param port: int - The port number the server listens on.
+       :param folder: str - Path to the directory where songs are stored.
+       :param secret_key: str - Secret key used to verify JWT tokens for client authentication.
+       :param cert_file: str - Path to the SSL certificate file (used for secure server connections).
+       :param key_file: str - Path to the SSL private key file.
+       :param queue_len: int, optional - Maximum number of queued client connections (default is 1).
+       :param log_dir: str, optional - Directory where log files are stored (default is 'logs').
+       :param log_file: str, optional - Name of the log file (default is 'server.log').
+    
+       :return: None
+       """
         self.ip = ip
         self.port = port
         self.folder = folder
@@ -30,6 +36,40 @@ class MediaServer:
         self._setup_folders()
         self._setup_logging()
 
+        self.CERT_FILE = cert_file
+        self.KEY_FILE = key_file
+        self.context = ssl.SSLContext(ssl.PROTOCOL_TLS_SERVER)
+        self.context.load_cert_chain(certfile=self.CERT_FILE, keyfile=self.KEY_FILE)
+
+        # contex2 for the action that the mian server connecting to other server
+        self.context2 = ssl.SSLContext(ssl.PROTOCOL_TLS_CLIENT)
+        self.context2.check_hostname = False
+        self.context2.verify_mode = ssl.CERT_NONE
+        
+    def create_ssl_socket(self, client_socket, ip):
+        """
+        Wraps a plain TCP socket with SSL/TLS encryption using the client's SSL context.
+
+        :param client_socket: A plain (non-encrypted) socket.socket object.
+        :param ip: The server's IP address or hostname used for SSL hostname verification.
+        :return: An SSL-wrapped socket with a timeout of 5 seconds set.
+        :raises ssl.SSLError: If an SSL-related error occurs during wrapping.
+        :raises socket.error: If a socket-related error occurs.
+        """
+        try:
+            ssl_socket = self.context2.wrap_socket(client_socket, server_hostname=ip)
+            ssl_socket.settimeout(5)
+            return ssl_socket
+        except ssl.SSLError as ssl_err:
+            logging.error(f"SSL error while wrapping socket: {ssl_err}")
+            raise  # אפשר להעביר את השגיאה הלאה או לטפל כאן בהתאם
+        except socket.error as sock_err:
+            logging.error(f"Socket error while setting up SSL socket: {sock_err}")
+            raise
+        except Exception as e:
+            logging.error(f"Unexpected error in create_ssl_socket: {e}")
+            raise
+        
     def _setup_folders(self):
         """
         Creates the media and log directories if they do not exist.
@@ -176,7 +216,8 @@ class MediaServer:
                 try:
                     token, song_name, ip, port = data[1], str(data[2]), data[3], int(data[4])
                     with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
-                        s.connect((ip, port))
+                        ssl_s = self.create_ssl_socket(s, ip)
+                        ssl_s.connect((ip, port))
                         self.send_song("bkp", s, song_name, token)
                 except Exception as e:
                     logging.debug(f"Failed to connect to secondary server: {e}")
@@ -206,7 +247,8 @@ class MediaServer:
                 logging.debug(f"Media server started at {self.ip}:{self.port}")
                 while True:
                     client_socket, client_addr = s.accept()
-                    threading.Thread(target=self.handle_client, args=(client_socket, client_addr)).start()
+                    ssl_socket = self.context.wrap_socket(client_socket, server_side=True)
+                    threading.Thread(target=self.handle_client, args=(ssl_socket, client_addr)).start()
             except socket.error as e:
                 logging.debug(f"Socket error on main socket: {e}")
 
@@ -217,6 +259,8 @@ if __name__ == "__main__":
         port=2222,
         folder=r"C:\musicCyber",
         secret_key="my_secret_key",
+        cert_file= "certificate.crt",
+        key_file= "privateKey.key",
         queue_len=1,
         log_dir="log3",
         log_file="server.log"

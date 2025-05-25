@@ -293,7 +293,6 @@ class MusicDB(DataBase):
             song_exists = self.select("songs", where_condition={"id": song_id})
             if not song_exists:
                 msg = f"Error: Song with ID {song_id} does not exist."
-                self.music_db_log.debug(msg)
                 print(msg)
                 return ["F", "Song with ID does not exist"]
 
@@ -305,7 +304,6 @@ class MusicDB(DataBase):
             })
             if song_in_playlist:
                 msg = f"Song already exists in playlist '{playlist_name}' for user '{username}'."
-                self.music_db_log.debug(msg)
                 print(msg)
                 return ["F", "Song is already in playlist"]
 
@@ -317,7 +315,6 @@ class MusicDB(DataBase):
             }
             self.insert("playlists", data)
             msg = f"✅ Song {song_id} added to playlist '{playlist_name}' for user '{username}'."
-            self.music_db_log.debug(msg)
             print(msg)
             return ["T"]
         except Exception as e:
@@ -338,7 +335,6 @@ class MusicDB(DataBase):
             song_exists = self.select("songs", where_condition={"id": song_id})
             if not song_exists:
                 msg = f"Error: Song with ID {song_id} does not exist."
-                self.music_db_log.debug(msg)
                 print(msg)
                 return ["F", "Song with ID does not exist"]
 
@@ -350,7 +346,6 @@ class MusicDB(DataBase):
             })
             if not song_in_playlist:
                 msg = f"Error: Song {song_id} not found in playlist '{playlist_name}' for user '{username}'."
-                self.music_db_log.debug(msg)
                 print(msg)
                 return ["F", "Song is not in playlist"]
 
@@ -386,9 +381,13 @@ class MusicDB(DataBase):
                     "playlists_name": playlist_name
                 }
             )
+
             if not playlist_entries:
                 return []
-            return playlist_entries
+            song_ids = []
+            for entry in playlist_entries:
+                song_ids.append(entry[0])
+            return song_ids
         except Exception as e:
             self.music_db_log.debug(f"get_user_playlists exception: {e}")
             return []

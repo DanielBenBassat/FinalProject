@@ -6,6 +6,9 @@ LOG_FORMAT = '%(levelname)s | %(asctime)s | %(message)s'
 LOG_LEVEL = logging.DEBUG
 LOG_DIR = 'log2'
 LOG_FILE = os.path.join(LOG_DIR, 'database.log')
+if not os.path.isdir(LOG_DIR):
+    os.makedirs(LOG_DIR)
+logging.basicConfig(format=LOG_FORMAT, filename=LOG_FILE, level=LOG_LEVEL)
 
 
 class DataBase:
@@ -19,11 +22,6 @@ class DataBase:
         """
         self.name = name
         self.conn = sqlite3.connect(self.name)
-        if not os.path.isdir(LOG_DIR):
-            os.makedirs(LOG_DIR)
-        logging.basicConfig(format=LOG_FORMAT, filename=LOG_FILE, level=LOG_LEVEL)
-
-        # יצירת אובייקט לביצוע שאילתות
         self.cursor = self.conn.cursor()
 
     def create_table(self, table_name, columns, foreign_keys=None):
@@ -189,9 +187,7 @@ class DataBase:
 
 
 if __name__ == "__main__":
-    if not os.path.isdir(LOG_DIR):
-        os.makedirs(LOG_DIR)
-    logging.basicConfig(format=LOG_FORMAT, filename=LOG_FILE, level=LOG_LEVEL)
+
     # מחיקת קובץ אם קיים
     if os.path.exists("test_db.sqlite"):
         os.remove("test_db.sqlite")

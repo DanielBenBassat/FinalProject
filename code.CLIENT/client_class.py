@@ -36,14 +36,13 @@ class Client:
             self.player_log = self.setup_logger("PlayerLogger", LOG_FILE_PLAYER)
 
             self.MAIN_SERVER_ADDR = (ip, port)
-            context = ssl.SSLContext(ssl.PROTOCOL_TLS_CLIENT)
-            context.check_hostname = False
-            context.verify_mode = ssl.CERT_NONE
-            temp_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 
-            self.main_socket = context.wrap_socket(temp_socket, server_hostname=ip)
+            self.context = ssl.SSLContext(ssl.PROTOCOL_TLS_CLIENT)
+            self.context.check_hostname = False
+            self.context.verify_mode = ssl.CERT_NONE
+            temp_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+            self.main_socket = self.create_ssl_socket(temp_socket, ip)
             self.main_socket.connect(self.MAIN_SERVER_ADDR)
-            self.main_socket.settimeout(5)
 
             self.q = SongsQueue()
             self.p = MusicPlayer()
@@ -69,6 +68,31 @@ class Client:
                 self.client_log.error(f"Error in client initialization: {e}")
             else:
                 print(f"Error in client initialization: {e}")
+
+    def create_ssl_socket(self, client_socket, ip):
+        """
+        Wraps a plain TCP socket with SSL/TLS encryption using the client's SSL context.
+
+        :param client_socket: A plain (non-encrypted) socket.socket object.
+        :param ip: The server's IP address or hostname used for SSL hostname verification.
+        :return: An SSL-wrapped socket with a timeout of 5 seconds set.
+        :raises ssl.SSLError: If an SSL-related error occurs during wrapping.
+        :raises socket.error: If a socket-related error occurs.
+        """
+        try:
+            ssl_socket = self.context.wrap_socket(client_socket, server_hostname=ip)
+            ssl_socket.settimeout(5)
+            return ssl_socket
+        except ssl.SSLError as ssl_err:
+            self.client_log.error(f"SSL error while wrapping socket: {ssl_err}")
+            raise  # אפשר להעביר את השגיאה הלאה או לטפל כאן בהתאם
+        except socket.error as sock_err:
+            self.client_log.error(f"Socket error while setting up SSL socket: {sock_err}")
+            raise
+        except Exception as e:
+            self.client_log.error(f"Unexpected error in create_ssl_socket: {e}")
+            raise
+
 
     @staticmethod
     def setup_logger(name, log_file):
@@ -116,6 +140,8 @@ class Client:
                 self.client_log.debug(f"Logging protocol error: {e}")
             else:
                 print(f"Logging protocol error: {e}")
+
+
 
     def start_client(self, cmd, username, password):
         """
@@ -242,7 +268,9 @@ class Client:
         file_path = "error"
         try:
             media_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-            media_socket.connect(server_address)
+            media_server_ip = server_address[0]
+            ssl_media_socket = self.create_ssl_socket(media_socket, media_server_ip)
+            ssl_media_socket.connect(server_address)
             self.client_log.debug(f"Connection with media server {server_address} successful!")
 
             cmd = "get"
@@ -349,7 +377,9 @@ class Client:
         try:
             # Try connecting to media server
             media_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-            media_socket.connect(server_address)
+            media_server_ip = server_address[0]
+            ssl_media_socket = self.create_ssl_socket(media_socket, media_server_ip)
+            ssl_media_socket.connect(server_address)
             self.client_log.debug("Connection with media server successful!")
 
             # Try reading the song file
@@ -641,7 +671,7 @@ class Client:
                 song_path = self.q.get_song(cmd)
                 self.queue_logging()
                 if os.path.exists(song_path):
-                    self.p.play_song(song_path, self.gui_to_client_queue) # שהתור ריק השיר מתנגן ושיש בו משהו הפעולה מופסקת
+                    self.p.play_song(song_path, self.gui_to_client_queue)  # שהתור ריק השיר מתנגן ושיש בו משהו הפעולה מופסקת
                 else:
                     self.player_log.debug("song not found")
                 cmd = "play"
