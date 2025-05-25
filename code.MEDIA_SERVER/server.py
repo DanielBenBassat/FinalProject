@@ -8,6 +8,17 @@ from protocol import protocol_receive, protocol_send
 
 class MediaServer:
     def __init__(self, ip, port, folder, secret_key, queue_len=1, log_dir='logs', log_file='server.log'):
+        """
+        Initializes the MediaServer with network, storage, and logging parameters.
+
+        :param ip: Server IP address to bind to.
+        :param port: Server port to listen on.
+        :param folder: Path to the folder where songs are stored.
+        :param secret_key: Secret key used for JWT token verification.
+        :param queue_len: Max number of queued client connections.
+        :param log_dir: Directory where logs are saved.
+        :param log_file: Log file name.
+        """
         self.ip = ip
         self.port = port
         self.folder = folder
@@ -20,6 +31,11 @@ class MediaServer:
         self._setup_logging()
 
     def _setup_folders(self):
+        """
+        Creates the media and log directories if they do not exist.
+
+        :return: None
+        """
         if not os.path.exists(self.folder):
             os.makedirs(self.folder)
         if not os.path.exists(self.log_dir):
@@ -55,6 +71,16 @@ class MediaServer:
             return {"valid": False, "error": "Invalid token"}
 
     def send_song(self, cmd, client_socket, song_name, token=""):
+        """
+        Sends a song file to the client based on the command type.
+
+        :param cmd: Command type ('get' or 'bkp').
+        :param client_socket: The socket connected to the client.
+        :param song_name: Name of the song (without file extension).
+        :param token: JWT token (optional, used for backup command).
+
+        :return: None
+        """
         data = []
         try:
             song_path = os.path.join(self.folder, f"{song_name}.mp3")
@@ -80,6 +106,14 @@ class MediaServer:
             self.logging_protocol("send", cmd, data)
 
     def add_song(self, song_byte, song_name):
+        """
+        Saves a song's bytes as an MP3 file in the media folder.
+
+        :param song_byte: Byte content of the song.
+        :param song_name: Name to save the file as (without extension).
+
+        :return: True if save succeeded, False otherwise.
+        """
         try:
             path = os.path.join(self.folder, f"{song_name}.mp3")
             with open(path, 'wb') as file:
@@ -90,6 +124,15 @@ class MediaServer:
             return False
 
     def handle_client(self, client_socket, client_address):
+        """
+        Handles an individual client connection, processing commands and
+        sending appropriate responses.
+
+        :param client_socket: The socket connected to the client.
+        :param client_address: Client's address info.
+
+        :return: None
+        """
         logging.debug(f"Client connected: {client_address}")
         try:
             cmd, data = protocol_receive(client_socket)
@@ -150,6 +193,12 @@ class MediaServer:
             logging.debug("Client disconnected")
 
     def start(self):
+        """
+        Starts the media server, listens for incoming connections,
+        and spawns a new thread to handle each client.
+
+        :return: None
+        """
         with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
             try:
                 s.bind((self.ip, self.port))
@@ -160,6 +209,7 @@ class MediaServer:
                     threading.Thread(target=self.handle_client, args=(client_socket, client_addr)).start()
             except socket.error as e:
                 logging.debug(f"Socket error on main socket: {e}")
+
 
 if __name__ == "__main__":
     server = MediaServer(

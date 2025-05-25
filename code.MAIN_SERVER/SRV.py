@@ -13,6 +13,16 @@ import ssl
 
 class MainServer:
     def __init__(self, ip, port, cert_file, key_file, address_list, secret_key):
+        """
+        Initializes the main server.
+
+        :param ip: The IP address the server should bind to.
+        :param port: The TCP port number the server will listen on.
+        :param cert_file: Path to the server's SSL certificate file (in PEM format).
+        :param key_file: Path to the server's private key file (in PEM format).
+        :param address_list: A list of addresses (e.g. media servers or other nodes).
+        :param secret_key: A shared secret key used for authentication or encryption between nodes.
+        """
         self.IP = ip
         self.PORT = port
         self.CERT_FILE = cert_file
@@ -32,11 +42,16 @@ class MainServer:
         self.context.load_cert_chain(certfile=self.CERT_FILE, keyfile=self.KEY_FILE)
 
     def _setup_logging(self):
-        if not os.path.isdir(self.LOG_DIR):
-            os.makedirs(self.LOG_DIR)
-        logging.basicConfig(format=self.LOG_FORMAT, filename=self.LOG_FILE, level=self.LOG_LEVEL)
+        try:
+            if not os.path.isdir(self.LOG_DIR):
+                os.makedirs(self.LOG_DIR)
+            logging.basicConfig(format=self.LOG_FORMAT, filename=self.LOG_FILE, level=self.LOG_LEVEL)
+        except Exception as e:
+            print(f"Failed to setup logging: {e}")
 
-    def logging_protocol(self, func, cmd, data):
+
+    @staticmethod
+    def logging_protocol(func, cmd, data):
         """
         Logs a debug message composed of the function name, command, and data items.
 
@@ -57,6 +72,12 @@ class MainServer:
             logging.debug(e)
 
     def generate_token(self, username):
+        """
+        Generates a JWT token for the given username with 1 hour expiry.
+
+        :param username: User identifier for the token.
+        :return: Encoded JWT token string.
+        """
         payload = {
             "sub": username,  # Subject: מי המשתמש
             "exp": datetime.datetime.utcnow() + datetime.timedelta(hours=1),
@@ -65,6 +86,12 @@ class MainServer:
         return jwt.encode(payload, self.SECRET_KEY, algorithm="HS256")
 
     def verify_token(self, token):
+        """
+        Verifies a JWT token's validity and expiration.
+
+        :param token: JWT token string.
+        :return: Dict with 'valid' boolean and data or error message.
+        """
         try:
             payload = jwt.decode(token, self.SECRET_KEY, algorithms=["HS256"])
             return {"valid": True, "data": payload}
@@ -74,6 +101,9 @@ class MainServer:
             return {"valid": False, "error": "Invalid token"}
 
     def background_task(self):
+        """
+        Runs periodic background tasks: server checks, song verification, and backups.
+        """
         db = MusicDB("my_db.db", self.ADDRESS_LIST)
         token = self.generate_token("main_server")
         token2 = self.generate_token("media_server")
@@ -84,6 +114,13 @@ class MainServer:
             time.sleep(15)
 
     def login_signup(self, db, client_socket):
+        """
+        Handles user login and signup interactions with the client.
+
+        :param db: MusicDB instance.
+        :param client_socket: Socket connected to the client.
+        :return: True if login/signup successful, False otherwise.
+        """
         logging.debug("Waiting for login or signup")
         songs_dict = pickle.dumps(db.all_songs())
 
@@ -123,6 +160,11 @@ class MainServer:
                     return False
 
     def handle_client(self, client_socket):
+        """
+        Manages communication with a connected client, handling commands and authentication.
+
+        :param client_socket: SSL wrapped client socket.
+        """
         try:
             db = MusicDB("my_db.db", self.ADDRESS_LIST)
             if not self.login_signup(db, client_socket):
@@ -178,6 +220,9 @@ class MainServer:
             logging.debug("Client disconnected")
 
     def start(self):
+        """
+        Starts the server: binds socket, listens for clients, and spawns handler threads.
+        """
         server_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         server_socket.bind((self.IP, self.PORT))
         server_socket.listen()
@@ -199,7 +244,7 @@ class MainServer:
         except Exception as e:
             logging.error(f"Server error: {e}")
         finally:
-            server.close()
+            server_socket.close()
             logging.debug("Server closed")
 
 

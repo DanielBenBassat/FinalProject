@@ -7,7 +7,6 @@ from protocol import protocol_receive
 import threading
 import pickle
 import os
-import shutil
 from songs_queue import SongsQueue
 from player import MusicPlayer
 
@@ -22,10 +21,10 @@ LOG_FORMAT = '%(levelname)s | %(asctime)s | %(name)s | %(message)s'
 class Client:
     def __init__(self, ip, port):
         """
-        Initialize the Client object.
-
+        Initializes the Client object, connects to the main server and sets up necessary components.
         :param ip: str, the IP address of the main server
         :param port: int, the port number of the main server
+        :return: None
         """
         try:
             if not os.path.isdir(LOG_DIR):
@@ -71,13 +70,13 @@ class Client:
             else:
                 print(f"Error in client initialization: {e}")
 
-    def setup_logger(self, name, log_file):
+    @staticmethod
+    def setup_logger(name, log_file):
         """
-        Set up a logger that logs to a specific file.
-
-        :param name: str, logger name
-        :param log_file: str, path to the log file
-        :return: logger object
+        Sets up a logger that writes to a specified log file.
+        :param name: str, the logger name
+        :param log_file: str, the log file path
+        :return: logging.Logger object
         """
         try:
             logger = logging.getLogger(name)
@@ -120,24 +119,11 @@ class Client:
 
     def start_client(self, cmd, username, password):
         """
-        Starts the client login or signup process with the main server.
-
-        Depending on the command, this method sends a signup or login request
-        to the main server using the provided username and password. If the
-        response from the server is successful (indicated by "T"), the client's
-        session is initialized with the username, authentication token, and
-        song data.
-
-        Additionally, the method ensures that the player thread is running
-        (starts it if not already alive) so that the client can handle music playback.
-
-        Parameters:
-            cmd (str): Command indicating the action. "1" for signup, "2" for login.
-            username (str): The username to sign up or log in with.
-            password (str): The corresponding password.
-
-        Returns:
-            list: The response data from the server (e.g., ["T", token, ...] or ["F", reason]).
+        Starts the client login or signup process with the main server, handles authentication and initializes session data.
+        :param cmd: str, "1" for signup, "2" for login
+        :param username: str, the username for authentication
+        :param password: str, the password for authentication
+        :return: list, response data from server (e.g., ["T", token, ...] or ["F", reason])
         """
         data = ["N"]
         try:
@@ -194,7 +180,6 @@ class Client:
         """
         Attempts to play a song by ID. If the song exists locally, it is added to the playback queue.
         Otherwise, it fetches the media server address, downloads the song, and adds it to the queue.
-
         :param song_id: The ID of the song to listen to.
         """
         try:
@@ -225,10 +210,9 @@ class Client:
 
     def get_address(self, song_id):
         """
-        Sends the main server a song ID and receives the address of the media server that hosts the song.
-
-        :param song_id: int - The ID of the requested song.
-        :return: tuple - Response from the server, e.g. ("T", ip, port) on success, or ("F", error_message) on failure.
+        Requests the media server address hosting the specified song from the main server.
+        :param song_id: int, the ID of the requested song
+        :return: tuple, server response like ("T", ip, port) on success or ("F", error_message) on failure
         """
         try:
             cmd = "gad"
@@ -250,12 +234,10 @@ class Client:
 
     def get_song(self, song_id, server_address):
         """
-        Requests the song file from the given media server address and saves it locally.
-
-        :param song_id: int - The ID of the requested song.
-        :param server_address: tuple(str, int) - The IP address and port of the media server.
-        :return: str - The filename if the song was successfully downloaded and saved,
-                       or "error" if there was a failure.
+        Downloads the song file from the media server and saves it locally.
+        :param song_id: int, the ID of the requested song
+        :param server_address: tuple(str, int), IP and port of the media server
+        :return: str, filename if downloaded successfully or "error" if failed
         """
         file_path = "error"
         try:
@@ -297,15 +279,12 @@ class Client:
 
     def upload_song(self, song_name, artist, file_path):
         """
-        Upload a song to the appropriate media server.
+        Uploads a new song to the appropriate media server.
 
-        This function checks if the provided file exists, requests a media server address
-        from the main server to upload the song, and sends the song file to that media server.
-
-        :param song_name: str - the name of the song
-        :param artist: str - the artist of the song
-        :param file_path: str - path to the local song file
-        :return: list - response indicating success or failure, e.g. ["T"] or ["F", "reason"]
+        :param song_name: str - name of the song to upload
+        :param artist: str - artist name
+        :param file_path: str - full path to the song file on local machine
+        :return: list - ["T"] on success, or ["F", reason] on failure
         """
         try:
             if not os.path.isfile(file_path):
@@ -357,12 +336,12 @@ class Client:
             self.client_log.error(f"Exception in get_address_new_song: {e}")
             return ["F", "exception occurred"]
 
-    def post_song(self, file_path, id, server_address):
+    def post_song(self, file_path, song_id, server_address):
         """
         Uploads a song file to the specified media server.
 
         :param file_path: str - full path to the song file
-        :param id: int - unique song ID assigned by the main server
+        :param song_id: int - unique song ID assigned by the main server
         :param server_address: tuple(str, int) - (IP, port) of the target media server
         :return: list - server response, e.g. ["T"] for success or ["F", reason] on failure
         """
@@ -384,7 +363,7 @@ class Client:
 
             # Send upload command
             cmd = "pst"
-            data = [self.token, id, song_bytes]
+            data = [self.token, song_id, song_bytes]
             protocol_send(media_socket, cmd, data)
             self.logging_protocol("send", cmd, data)
 
@@ -412,19 +391,9 @@ class Client:
 
     def refresh_song_dict(self):
         """
-        Refresh the local song dictionary by requesting updated song data from the main server.
+        Refreshes the local song dictionary by requesting updated data from the main server.
 
-        This function sends a "rfs" (refresh songs) command along with the user's token to the main server,
-        and attempts to receive an updated song dictionary. If the response is successful ("T"),
-        the dictionary is deserialized using pickle and stored in self.song_id_dict.
-
-        Returns:
-            bool: True if the song dictionary was successfully updated, False otherwise.
-
-        Handles:
-            - ConnectionError, OSError: Network-related issues during communication.
-            - pickle.PickleError: Issues decoding the received song dictionary.
-            - Any other unexpected exception is logged and results in a False return value.
+        :return: bool - True if the song dictionary was successfully updated, False otherwise
         """
         try:
             cmd = "rfs"
@@ -457,24 +426,12 @@ class Client:
 
     def song_and_playlist(self, func, playlist_name, song_id):
         """
-        Add or remove a song from a user's playlist on the server.
+        Adds or removes a song from a user's playlist on the main server.
 
-        This function communicates with the main server to add or remove a song from a specified playlist.
-        It uses the token and username for authentication and handles token expiration.
-
-        Parameters:
-            func (str): Operation to perform - "add" to add song, "remove" to remove song.
-            playlist_name (str): Name of the playlist.
-            song_id (str): ID of the song to add/remove.
-
-        Returns:
-            list: A response list from the server. ["T", ...] on success, ["F", reason] on failure.
-
-        Handles:
-            - Network errors
-            - Protocol errors
-            - Unexpected exceptions
-            - Token expiration
+        :param func: str - "add" to add song, "remove" to remove song
+        :param playlist_name: str - name of the playlist
+        :param song_id: str - ID of the song to add or remove
+        :return: list - ["T", ...] on success, or ["F", reason] on failure
         """
         try:
             if func == "add":
@@ -522,13 +479,9 @@ class Client:
 
     def reset(self):
         """
-        Resets the client state after logout or token expiration.
+        Resets client state after logout or token expiration.
 
-        - Sends a logout request to the main server if the session is still valid.
-        - Clears the local playback queue and user-related data.
-        - Marks the client as expired to prevent further actions.
-
-        This method also handles and logs any exceptions that occur during cleanup.
+        :return: None
         """
         self.client_log.debug("reset() called - logging out user")
         try:
@@ -552,15 +505,9 @@ class Client:
 
     def exit(self):
         """
-        Gracefully shuts down the client.
+        Gracefully shuts down the client by notifying the server, closing sockets, and clearing state.
 
-        - Sends an 'exit' command (`ext`) to the main server to notify of disconnection.
-        - Closes the main socket connection safely.
-        - Resets the music queue, music player, and internal queues.
-        - Clears all user-related state including token, username, liked songs, etc.
-        - Marks the client as expired.
-
-        Any exceptions during the shutdown process are caught and logged.
+        :return: None
         """
         self.client_log.debug("exit() called - shutting down client")
         try:
@@ -600,18 +547,10 @@ class Client:
 
     def play_playlist(self, playlist):
         """
-        Clears the current song queue and starts playing the given playlist.
+        Clears the current queue and starts playing the given playlist.
 
-        Parameters:
-        playlist (list): A list of song metadata (e.g., song paths or song objects) to enqueue and play.
-
-        Behavior:
-        - Clears the existing queue to avoid mixing with previous songs.
-        - Stops any currently playing song.
-        - Enqueues and processes each song in the playlist using `listen_song`.
-
-        Exceptions:
-        - Any error during queue manipulation or song playback is caught and logged.
+        :param playlist: list - list of songs (paths or objects) to play
+        :return: None
         """
         try:
             self.client_log.debug("Starting playlist playback.")
@@ -632,8 +571,18 @@ class Client:
             print(f"Failed to play playlist: {e}")
 
     def player_func(self):
-        print("player_thread")
-        while True: # and not self.is_expired:
+        """
+        Main player thread loop that processes commands from the GUI queue.
+
+        - Handles playback commands: play, pause, resume, next, prev.
+        - Clears queues on logout.
+        - Shuts down player and deletes files on shutdown.
+        - Logs detailed debug information for each action.
+
+        :return: None
+        """
+        self.player_log.debug("player_thread")
+        while True:
             cmd = self.gui_to_client_queue.get()
             self.queue_logging()
             self.player_log.debug(cmd)
@@ -658,9 +607,9 @@ class Client:
                 self.p.stop_song()
                 self.player_log.debug("stop song: ")
                 while not self.client_to_gui_queue.empty():
-                    temp = self.client_to_gui_queue.get()
+                    self.client_to_gui_queue.get()
                 while not self.gui_to_client_queue.empty():
-                    temp = self.gui_to_client_queue.get()
+                    self.gui_to_client_queue.get()
                 self.player_log.debug("clear queues")
 
             elif cmd == "shutdown":
@@ -677,6 +626,16 @@ class Client:
         self.player_log.debug("finish player thread")
 
     def play_loop(self, cmd):
+        """
+        Plays songs from the queue based on the command until the GUI queue receives new input.
+
+        - Checks for song existence before playing.
+        - Sends notification if no songs are available.
+        - Logs playback and queue status.
+
+        :param cmd: str - playback command such as 'play' or 'prev'
+        :return: None
+        """
         while self.gui_to_client_queue.empty():
             if not self.q.my_queue.empty() or (cmd == "prev" and self.q.prev_song_path != ""):
                 song_path = self.q.get_song(cmd)
@@ -685,7 +644,7 @@ class Client:
                     self.p.play_song(song_path, self.gui_to_client_queue) # שהתור ריק השיר מתנגן ושיש בו משהו הפעולה מופסקת
                 else:
                     self.player_log.debug("song not found")
-                cmd == "play" # after the first time, doing the loop regulary
+                cmd = "play"
             else:
                 self.player_log.debug("nothing to play")
                 self.client_to_gui_queue.put("nothing to play")
@@ -693,6 +652,10 @@ class Client:
         self.player_log.debug("play loop has finished")
 
     def queue_logging(self):
+        """
+        Logs the current state of the song queue and player pause status.
+        :return: None
+        """
         msg_queue = list(self.q.my_queue.queue)
         for i in msg_queue:
             i = str(i)
@@ -722,4 +685,3 @@ class Client:
                 os.remove(self.q.recent_song_path)
         except Exception as e:
             self.player_log.error(f"Error deleting files: {e}")
-

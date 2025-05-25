@@ -1,11 +1,9 @@
 from database import DataBase
-import random
 import socket
 from protocol import protocol_receive
 from protocol import protocol_send
 import os
 import logging
-
 
 LOG_DIR = 'log2'
 LOG_FILE_TASK = os.path.join(LOG_DIR, 'background_task.log')
@@ -48,7 +46,7 @@ class MusicDB(DataBase):
             "id": "INTEGER PRIMARY KEY AUTOINCREMENT",
             "IP":   "TEXT NOT NULL",
             "port": "INTEGER NOT NULL",
-            "setting": "TEXT NOT NULL" # active or fallen
+            "setting": "TEXT NOT NULL"
         }
         self.create_table("servers", server_columns)
         existing_servers = self.select("servers")
@@ -64,7 +62,8 @@ class MusicDB(DataBase):
             data = {"IP": server[0], "port": server[1], "setting": "pending"}
             self.insert("servers", data)
 
-    def setup_logger(self, name, log_file):
+    @staticmethod
+    def setup_logger(name, log_file):
         """Set up a logger that logs to a specific file"""
         logger = logging.getLogger(name)
         logger.setLevel(logging.DEBUG)
@@ -75,7 +74,8 @@ class MusicDB(DataBase):
         logger.addHandler(file_handler)
         return logger
 
-    def logging_protocol(self, func, cmd, data):
+    @staticmethod
+    def logging_protocol(func, cmd, data):
         """
         Logs a debug message composed of the function name, command, and data items.
 
@@ -146,11 +146,7 @@ class MusicDB(DataBase):
         """
         Retrieves all songs from the 'songs' table where either 'setting1' or 'setting2' is 'verified'.
 
-        Returns:
-            dict: A dictionary where each key is a song name and the value is a tuple (artist, id).
-
-        Logs:
-            Any exceptions during database access or data processing are caught and logged using self.music_db_log.debug.
+        Returns: dict: A dictionary where each key is a song name and the value is a tuple (artist, id).
         """
         song_dict = {}
         try:
@@ -158,8 +154,8 @@ class MusicDB(DataBase):
             for i in songs:
                 name = i[1]
                 artist = i[2]
-                id = i[0]
-                song_dict[name] = (artist, id)
+                song_id = i[0]
+                song_dict[name] = (artist, song_id)
         except Exception as e:
             self.music_db_log.debug(f"Error in all_songs: {e}")
         return song_dict
@@ -284,6 +280,14 @@ class MusicDB(DataBase):
 
     # ******************************************************************************
     def add_to_playlist(self, username, playlist_name, song_id):
+        """
+        Add a song to a user's playlist if the song exists and is not already in the playlist.
+
+        :param username: The username owning the playlist.
+        :param playlist_name: The name of the playlist.
+        :param song_id: The ID of the song to add.
+        :return: ["T"] on success, ["F", error_message] on failure.
+        """
         try:
             # Check if song exists
             song_exists = self.select("songs", where_condition={"id": song_id})
@@ -321,6 +325,14 @@ class MusicDB(DataBase):
             return ["F", "error"]
 
     def remove_from_playlist(self, username, playlist_name, song_id):
+        """
+        Remove a song from a user's playlist if the song exists and is in the playlist.
+
+        :param username: The username owning the playlist.
+        :param playlist_name: The name of the playlist.
+        :param song_id: The ID of the song to remove.
+        :return: ["T"] on success, ["F", error_message] on failure.
+        """
         try:
             # Check if song exists
             song_exists = self.select("songs", where_condition={"id": song_id})
@@ -357,6 +369,13 @@ class MusicDB(DataBase):
             return ["F", "error"]
 
     def get_user_playlists(self, username, playlist_name):
+        """
+       Retrieve all song IDs in a user's specified playlist.
+
+       :param username: The username owning the playlist.
+       :param playlist_name: The name of the playlist.
+       :return: List of song IDs in the playlist, or empty list if none or on error.
+       """
         try:
             # Retrieve song IDs from playlist
             playlist_entries = self.select(
@@ -379,11 +398,11 @@ class MusicDB(DataBase):
         """
         Checks each server in self.address_list by sending a 'hlo' command with the given token.
         Updates the server's setting to 'active' if response data[0] == "T", otherwise 'fallen'.
-        Handles socket timeout and socket errors by marking server as 'fallen'.
-        Logs server responses and errors using self.task_log.debug.
 
         :param token: Token string sent to servers for verification.
         """
+        setting = None
+        address = None
         try:
             cmd = "hlo"
             for address in self.address_list:
@@ -397,43 +416,36 @@ class MusicDB(DataBase):
                         s.connect(address)  # address is (host, port) tuple
 
                         protocol_send(s, cmd, data)
-                        # self.logging_protocol("send", cmd, data)
-                        cmd, data = protocol_receive(s)
-                        # self.logging_protocol("receive", cmd, data)
+                        cmd_resp, data_resp = protocol_receive(s)
 
-                        if data[0] == "T":
+                        if data_resp[0] == "T":
                             if setting != "active":
                                 self.task_log.debug(f"Server {address} responded with 'T'. Marking as active.")
-                                self.update("servers", {"setting": "active"}, {"IP": address[0], "port": address[1]})
+                                self.update("servers", {"setting": "active"}, {"IP": address[0], "port": address[1]},)
                         else:
-                            self.task_log.debug(f"Server {address} responded with unexpected message: {data}")
+                            self.task_log.debug(
+                                f"Server {address} responded with unexpected message: {data_resp}"
+                            )
                             if setting != "fallen":
-                                self.update("servers", {"setting": "fallen"}, {"IP": address[0], "port": address[1]})
+                                self.update("servers", {"setting": "fallen"}, {"IP": address[0], "port": address[1]},)
 
                     except socket.timeout:
                         self.task_log.debug(f"Server {address} timed out.")
                         if setting != "fallen":
-                            self.update("servers", {"setting": "fallen"}, {"IP": address[0], "port": address[1]})
+                            self.update("servers", {"setting": "fallen"}, {"IP": address[0], "port": address[1]},)
 
         except socket.error as e:
-            self.task_log.debug(f"Socket error with server {address}: {e}")
-            if setting != "fallen":
-                self.update("servers", {"setting": "fallen"}, {"IP": address[0], "port": address[1]})
+            self.task_log.debug(f"Socket error with server address: {e}")
+            if setting is not None and setting != "fallen" and address is not None:
+                self.update("servers", {"setting": "fallen"}, {"IP": address[0], "port": address[1]},)
 
         finally:
-            fallen_servers = self.select("servers", "*", {})
+            fallen_servers = self.select("servers", "*", {"setting": "fallen"})
             self.task_log.debug(f"Current servers state: {fallen_servers}")
 
     def verify_songs(self, token):
         """
         Verify songs that are in 'pending' status and update their status if available.
-
-        - Queries songs marked as 'pending' in the database.
-        - Attempts to retrieve the file from the specified server.
-        - If the file is found, updates the status to 'verified'.
-        - If the song exists only on one server, triggers backup.
-
-        :raises Exception: On general errors.
         """
         try:
             # Fetch songs pending verification
@@ -468,11 +480,11 @@ class MusicDB(DataBase):
                                 self.update("songs", {"ip1": "", "port1": "", "setting1": ""}, {"id": song_id})
 
                 except ValueError as e:
-                    err_msg = f"Error converting port to integer for song ID {song_id}: {e}"
+                    err_msg = f"Error converting port to integer for song ID {e}"
                     self.task_log.error(err_msg)
                     print(err_msg)
                 except Exception as e:
-                    err_msg = f"Unexpected error processing song ID {song_id}: {e}"
+                    err_msg = f"Unexpected error processing song ID {e}"
                     self.task_log.error(err_msg)
                     print(err_msg)
 
@@ -546,20 +558,20 @@ class MusicDB(DataBase):
                             data[setting] = "pending"
                             self.update("songs", data, {"id": int(song_id)})
                 except Exception as e:
-                    self.task_log.error(f"Error backing up song {song_id}: {e}")
-                    print(f"Error backing up song {song_id}: {e}")
+                    self.task_log.error(f"Error backing up song {e}")
+                    print(f"Error backing up song {e}")
         except Exception as e:
             err_msg = f"Error during backup_songs process: {e}"
             self.task_log.error(err_msg)
             print(err_msg)
 
-    def backup_func(self, token, token2, id, server1, server2):
+    def backup_func(self, token, token2, song_id, server1, server2):
         """
         Sends a backup command to a media server to copy a song from one server to another.
 
         :param token: Authentication token for the source server
         :param token2: Authentication token for the destination server
-        :param id: ID of the song to be backed up
+        :param song_id: ID of the song to be backed up
         :param server1: Tuple (IP, port) of the source media server where the song currently exists
         :param server2: Tuple (IP, port) of the target media server for backup
         :return: True if the backup command was successfully sent, False otherwise
@@ -570,17 +582,16 @@ class MusicDB(DataBase):
             media_socket.connect(server1)
 
             cmd = "bkg"
-            data = [token, token2, id, server2[0], server2[1]]
+            data = [token, token2, song_id, server2[0], server2[1]]
             protocol_send(media_socket, cmd, data)
             self.logging_protocol("send", cmd, data)
 
             media_socket.close()
             val = True
-            self.task_log.info(f"Backup command sent for song ID {id} from {server1} to {server2}")
+            self.task_log.info(f"Backup command sent for song ID {song_id} from {server1} to {server2}")
         except socket.error as e:
-            err_msg = f"Connection failed during backup for song ID {id}: {e}"
+            err_msg = f"Connection failed during backup for song ID {song_id}: {e}"
             self.task_log.error(err_msg)
             print(err_msg)
         finally:
             return val
-

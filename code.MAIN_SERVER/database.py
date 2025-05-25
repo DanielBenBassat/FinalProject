@@ -19,6 +19,9 @@ class DataBase:
         """
         self.name = name
         self.conn = sqlite3.connect(self.name)
+        if not os.path.isdir(LOG_DIR):
+            os.makedirs(LOG_DIR)
+        logging.basicConfig(format=LOG_FORMAT, filename=LOG_FILE, level=LOG_LEVEL)
 
         # יצירת אובייקט לביצוע שאילתות
         self.cursor = self.conn.cursor()
@@ -81,7 +84,7 @@ class DataBase:
         except sqlite3.OperationalError as err:
             logging.debug(f"Operational error during insert: {err}")
 
-    def select(self, table_name, fields='*', where_condition={}, cond="And"):
+    def select(self, table_name, fields='*', where_condition=None, cond="And"):
         """
         Retrieves data from a table based on the specified conditions.
 
@@ -94,6 +97,8 @@ class DataBase:
 
         This method builds a SELECT query dynamically based on the provided conditions and executes it safely with parameterized queries.
         """
+        if where_condition is None:
+            where_condition = {}
         select_query = f"SELECT {fields} FROM {table_name}"
         values = []
 

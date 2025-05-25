@@ -1,5 +1,7 @@
 import pygame
 from time import sleep
+import os
+import logging
 
 
 class MusicPlayer:
@@ -12,8 +14,23 @@ class MusicPlayer:
             self.is_playing = False
             self.is_paused = False
             self.current_file = ""
+
+            self.LOG_FORMAT = '%(levelname)s | %(asctime)s | %(message)s'
+            self.LOG_LEVEL = logging.DEBUG
+            self.LOG_DIR = 'log'
+            self.LOG_FILE = os.path.join(self.LOG_DIR, 'player_class.log')
+            self._setup_logging()
         except pygame.error as e:
-            print(f"Failed to initialize mixer: {e}")
+            logging.debug(f"Failed to initialize mixer: {e}")
+
+    def _setup_logging(self):
+        try:
+            if not os.path.isdir(self.LOG_DIR):
+                os.makedirs(self.LOG_DIR)
+            logging.basicConfig(format=self.LOG_FORMAT, filename=self.LOG_FILE, level=self.LOG_LEVEL)
+        except Exception as e:
+            print(f"Failed to setup logging: {e}")
+
 
     def play_song(self, file_path, cmd_queue):
         """
@@ -28,7 +45,7 @@ class MusicPlayer:
             self.current_file = file_path
             self.is_playing = True
             self.is_paused = False
-            print(f"🎵 Playing: {file_path}")
+            logging.debug(f"🎵 Playing: {file_path}")
 
             sleep(1)
             while self.is_playing:
@@ -36,7 +53,7 @@ class MusicPlayer:
                     self.is_playing = False
                     self.is_paused = False
                     self.current_file = ""
-                    print("Playback finished")
+                    logging.debug("Playback finished")
                     try:
                         pygame.mixer.music.unload()  # Available in some pygame versions
                     except AttributeError:
@@ -44,15 +61,15 @@ class MusicPlayer:
                     break
 
                 if not cmd_queue.empty():
-                    print("Received new command, stopping playback")
+                    logging.debug("Received new command, stopping playback")
                     break
 
                 pygame.time.Clock().tick(30)
 
-            print("⏹️ Song ended.")
+            logging.debug("⏹️ Song ended.")
 
         except pygame.error as e:
-            print(f"Error playing song '{file_path}': {e}")
+            logging.debug(f"Error playing song '{file_path}': {e}")
 
     def stop_song(self):
         """
@@ -63,9 +80,9 @@ class MusicPlayer:
             self.is_playing = False
             self.is_paused = False
             self.current_file = ""
-            print("⏹️ Song stopped.")
+            logging.debug("⏹️ Song stopped.")
         except pygame.error as e:
-            print(f"Error stopping song: {e}")
+            logging.debug(f"Error stopping song: {e}")
 
     def pause_song(self):
         """
@@ -75,10 +92,10 @@ class MusicPlayer:
             if self.is_playing and not self.is_paused:
                 pygame.mixer.music.pause()
                 self.is_paused = True
-                print("⏸️ Song paused.")
-                print(f"is_paused: {self.is_paused}")
+                logging.debug("⏸️ Song paused.")
+                logging.debug(f"is_paused: {self.is_paused}")
         except pygame.error as e:
-            print(f"Error pausing song: {e}")
+            logging.debug(f"Error pausing song: {e}")
 
     def resume_song(self):
         """
@@ -88,10 +105,10 @@ class MusicPlayer:
             if self.is_paused:
                 pygame.mixer.music.unpause()
                 self.is_paused = False
-                print("▶️ Playback resumed.")
-                print(f"After unpause: busy={pygame.mixer.music.get_busy()}")
+                logging.debug("▶️ Playback resumed.")
+                logging.debug(f"After unpause: busy={pygame.mixer.music.get_busy()}")
         except pygame.error as e:
-            print(f"Error resuming song: {e}")
+            logging.debug(f"Error resuming song: {e}")
 
     def shutdown(self):
         """
@@ -100,12 +117,11 @@ class MusicPlayer:
         try:
             if self.is_playing or self.is_paused:
                 pygame.mixer.music.stop()
-                print("⏹️ Song stopped.")
+                logging.debug("⏹️ Song stopped.")
             pygame.mixer.quit()
             self.is_playing = False
             self.is_paused = False
             self.current_file = None
-            print("🎧 Player shut down and resources cleaned up.")
+            logging.debug("🎧 Player shut down and resources cleaned up.")
         except pygame.error as e:
-            print(f"Error during shutdown: {e}")
-
+            logging.debug(f"Error during shutdown: {e}")

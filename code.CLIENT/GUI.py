@@ -1,14 +1,23 @@
-import time
 import tkinter as tk
 from client_class import Client
 import queue
 from tkinter import messagebox
 import hashlib
+import os
+import logging
 
 IP = "127.0.0.1"
 PORT = 5555
 SCREEN_WIDTH = 700
 SCREEN_HEIGHT = 600
+
+LOG_FORMAT = '%(levelname)s | %(asctime)s | %(message)s'
+LOG_LEVEL = logging.DEBUG
+LOG_DIR = 'log'
+LOG_FILE = os.path.join(LOG_DIR, 'gui.log')
+if not os.path.isdir(LOG_DIR):
+    os.makedirs(LOG_DIR)
+logging.basicConfig(format=LOG_FORMAT, filename=LOG_FILE, level=LOG_LEVEL)
 
 
 class UserInterface:
@@ -39,8 +48,17 @@ class UserInterface:
             self.show_frame("welcome")
             self.root.protocol("WM_DELETE_WINDOW", self.closing)
 
+
         except Exception as e:
             print(f"[ERROR] Failed to initialize UserInterface: {e}")
+            
+    def _setup_logging(self):
+        try:
+            if not os.path.isdir(self.LOG_DIR):
+                os.makedirs(self.LOG_DIR)
+            logging.basicConfig(format=self.LOG_FORMAT, filename=self.LOG_FILE, level=self.LOG_LEVEL)
+        except Exception as e:
+            print(f"Failed to setup logging: {e}")
 
     def show_frame(self, frame_name):
         """
@@ -49,7 +67,7 @@ class UserInterface:
         :param frame_name: The name of the frame to display (e.g., 'home', 'login', 'signup', etc.)
         """
         try:
-            print(f"Showing frame: {frame_name}")
+            logging.debug(f"Showing frame: {frame_name}")
 
             # Hide all frames
             for frame in self.frames.values():
@@ -69,10 +87,10 @@ class UserInterface:
             if frame_name in self.frames:
                 self.frames[frame_name].pack(fill="both", expand=True)
             else:
-                print(f"[WARNING] Frame '{frame_name}' not found.")
+                logging.debug(f"[WARNING] Frame '{frame_name}' not found.")
 
         except Exception as e:
-            print(f"[ERROR] Failed to show frame '{frame_name}': {e}")
+            logging.debug(f"[ERROR] Failed to show frame '{frame_name}': {e}")
 
     def add_navigation_buttons(self, frame, current_screen):
         """
@@ -113,7 +131,7 @@ class UserInterface:
             ).pack(pady=6)
 
         except Exception as e:
-            print(f"Error in add_navigation_buttons: {e}")
+            logging.debug(f"Error in add_navigation_buttons: {e}")
             messagebox.showerror("Error", f"Failed to create navigation buttons: {e}")
 
     def create_welcome_screen(self):
@@ -174,7 +192,7 @@ class UserInterface:
             return frame
 
         except Exception as e:
-            print(f"[ERROR] Failed to create welcome screen: {e}")
+            logging.debug(f"[ERROR] Failed to create welcome screen: {e}")
             return tk.Frame(self.root)
 
     def create_signup_screen(self):
@@ -254,7 +272,7 @@ class UserInterface:
             return frame
 
         except Exception as e:
-            print(f"[ERROR] Failed to create sign-up screen: {e}")
+            logging.debug(f"[ERROR] Failed to create sign-up screen: {e}")
             return tk.Frame(self.root)
 
     def signup_action(self, username_var, password_var, confirm_password_var):
@@ -271,9 +289,9 @@ class UserInterface:
             password = password_var.get()
             confirm_password = confirm_password_var.get()
 
-            print("Username:", username)
-            print("Password:", password)
-            print("Confirm Password:", confirm_password)
+            logging.debug("Username:", username)
+            logging.debug("Password:", password)
+            logging.debug("Confirm Password:", confirm_password)
 
             # Validate input
             if not username or not password or not confirm_password:
@@ -298,7 +316,7 @@ class UserInterface:
                 messagebox.showerror("Sign Up Error", f"Unexpected response from server: {data}")
 
         except Exception as e:
-            print(f"[ERROR] Sign-up action failed: {e}")
+            logging.debug(f"[ERROR] Sign-up action failed: {e}")
             messagebox.showerror("Error", "An unexpected error occurred during sign-up.")
 
     def create_login_screen(self):
@@ -376,7 +394,7 @@ class UserInterface:
             return frame
 
         except Exception as e:
-            print(f"[ERROR] Failed to create login screen: {e}")
+            logging.debug(f"[ERROR] Failed to create login screen: {e}")
             return tk.Frame(self.root)
 
     def login_action(self, username_var, password_var):
@@ -391,8 +409,8 @@ class UserInterface:
             username = username_var.get()
             password = password_var.get()
 
-            print("Username:", username)
-            print("Password:", password)
+            logging.debug("Username:" + username)
+            logging.debug("Password:" + password)
 
             # Validate inputs
             if not username or not password:
@@ -413,7 +431,7 @@ class UserInterface:
                 messagebox.showerror("Login Error", f"Unexpected response from server: {data}")
 
         except Exception as e:
-            print(f"[ERROR] Login action failed: {e}")
+            logging.debug(f"[ERROR] Login action failed: {e}")
             messagebox.showerror("Error", "An unexpected error occurred during login.")
 
 # ************************************************************************************************************************************************
@@ -502,7 +520,7 @@ class UserInterface:
             return main_frame
 
         except Exception as e:
-            print(f"[ERROR] Failed to create home screen: {e}")
+            logging.debug(f"[ERROR] Failed to create home screen: {e}")
             return tk.Frame(self.root)  # fallback to empty frame
 
     def create_song_row(self, parent, song_name, artist, song_id):
@@ -557,7 +575,7 @@ class UserInterface:
             like_button.pack(side="left", padx=6)
 
         except Exception as e:
-            print(f"Error in creating song row: {e}")
+            logging.debug(f"Error in creating song row: {e}")
             messagebox.showerror("Error", f"Failed to create song row: {e}")
 
     def add_song_to_queue(self, song_id):
@@ -567,13 +585,13 @@ class UserInterface:
         :param song_id: Unique identifier of the song to add.
         """
         try:
-            print(song_id)
+            logging.debug(song_id)
             self.client.listen_song(song_id)
             if self.client.is_expired:
                 messagebox.showerror("Error", "Token invalid or token has expired")
                 self.logout()
         except Exception as e:
-            print(f"Error in add_song_to_queue: {e}")
+            logging.debug(f"Error in add_song_to_queue: {e}")
             messagebox.showerror("Error", f"Failed to add song to queue: {e}")
 
     def play_song(self, song_id):
@@ -583,7 +601,7 @@ class UserInterface:
         :param song_id: Unique identifier of the song to play.
         """
         try:
-            print(song_id)
+            logging.debug(song_id)
             self.client.q.clear_queue()
             self.client.listen_song(song_id)
 
@@ -597,7 +615,7 @@ class UserInterface:
                 messagebox.showerror("Error", "Token invalid or token has expired")
                 self.logout()
         except Exception as e:
-            print(f"Error in play_song: {e}")
+            logging.debug(f"Error in play_song: {e}")
             messagebox.showerror("Error", f"Failed to play song: {e}")
 
     def like_song(self, song_id, like_button):
@@ -608,7 +626,7 @@ class UserInterface:
         :param like_button: The button widget to update its text/icon.
         """
         try:
-            print(song_id)
+            logging.debug(song_id)
             if song_id in self.client.liked_song:
                 result = self.client.song_and_playlist("remove", "liked_song", song_id)
                 if result[0] == "T":
@@ -626,7 +644,7 @@ class UserInterface:
                 messagebox.showerror("Error", "Token invalid or token has expired")
                 self.logout()
         except Exception as e:
-            print(f"Error in like_song: {e}")
+            logging.debug(f"Error in like_song: {e}")
             messagebox.showerror("Error", f"Failed to toggle like: {e}")
 
     def play_playlist(self, playlist):
@@ -639,7 +657,7 @@ class UserInterface:
             self.client.play_playlist(playlist)
             self.play_pause()
         except Exception as e:
-            print(f"Error in play_playlist: {e}")
+            logging.debug(f"Error in play_playlist: {e}")
             messagebox.showerror("Error", f"Failed to play playlist: {e}")
 
     def refresh_home_screen(self):
@@ -653,7 +671,7 @@ class UserInterface:
             else:
                 messagebox.showerror("Refresh", "Error while refreshing")
         except Exception as e:
-            print(f"Error in refresh_home_screen: {e}")
+            logging.debug(f"Error in refresh_home_screen: {e}")
             messagebox.showerror("Error", f"Failed to refresh home screen: {e}")
 
     def create_add_song_screen(self):
@@ -702,7 +720,7 @@ class UserInterface:
             return frame
 
         except Exception as e:
-            print(f"Error in create_add_song_screen: {e}")
+            logging.debug(f"Error in create_add_song_screen: {e}")
             messagebox.showerror("Error", f"Failed to create Add Song screen: {e}")
 
     def upload_song_action(self, song_name_var, artist_name_var, song_path_var):
@@ -718,12 +736,12 @@ class UserInterface:
             artist_name = artist_name_var.get()
             song_path = song_path_var.get()
 
-            print("Song Name:", song_name)
-            print("Artist Name:", artist_name)
-            print("Song File Path:", song_path)
+            logging.debug("Song Name:", song_name)
+            logging.debug("Artist Name:", artist_name)
+            logging.debug("Song File Path:", song_path)
 
             msg = self.client.upload_song(song_name, artist_name, song_path)
-            print(msg)
+            logging.debug(msg)
             if msg[0] == "F":
                 messagebox.showerror("Error", msg[1])
             elif msg[0] == "T":
@@ -734,7 +752,7 @@ class UserInterface:
                 self.logout()
 
         except Exception as e:
-            print(f"Error in upload_song_action: {e}")
+            logging.debug(f"Error in upload_song_action: {e}")
             messagebox.showerror("Error", f"Failed to upload song: {e}")
 
     def create_profile_screen(self):
@@ -798,7 +816,7 @@ class UserInterface:
             return frame
 
         except Exception as e:
-            print(f"Error in create_profile_screen: {e}")
+            logging.debug(f"Error in create_profile_screen: {e}")
             messagebox.showerror("Error", f"Failed to create profile screen: {e}")
 
     def logout(self):
@@ -811,7 +829,7 @@ class UserInterface:
             self.client.reset()
             self.show_frame("welcome")
         except Exception as e:
-            print(f"Error during logout: {e}")
+            logging.debug(f"Error during logout: {e}")
             messagebox.showerror("Error", f"Logout failed: {e}")
 
     def closing(self):
@@ -822,13 +840,13 @@ class UserInterface:
         and destroys the main window.
         """
         try:
-            print("closing")
+            logging.debug("closing")
             self.client.gui_to_client_queue.put("shutdown")
             self.client.exit()
         except Exception as e:
-            print(f"Error during closing: {e}")
+            logging.debug(f"Error during closing: {e}")
         finally:
-            print("good bye")
+            logging.debug("good bye")
             self.root.destroy()
 
 # ***********************************************************************************
@@ -853,8 +871,7 @@ class UserInterface:
             center_frame = tk.Frame(controls_frame, bg="blue")
             center_frame.pack(side="left", expand=True)
 
-            self.play_pause_button = tk.Button(center_frame, text="▶", font=("Arial", 16),
-                                               command=self.play_pause)
+            self.play_pause_button = tk.Button(center_frame, text="▶", font=("Arial", 16), command=self.play_pause)
             self.play_pause_button.pack(padx=20, pady=10)
 
             # Next song button - packed to right
@@ -862,9 +879,8 @@ class UserInterface:
                       command=self.next_song).pack(side="right", padx=20, pady=10)
 
         except Exception as e:
-            print(f"Error in create_music_player_bar: {e}")
+            logging.debug(f"Error in create_music_player_bar: {e}")
             messagebox.showerror("Error", f"Failed to create music bar: {e}")
-
 
     def prev_song(self):
         """
@@ -872,14 +888,14 @@ class UserInterface:
         Sends a 'prev' command to the client via queue and updates the UI.
         """
         try:
-            print("prev song")
+            logging.debug("prev song")
             if self.client.q.prev_song_path != "":
-                print(self.client.q.prev_song_path)
+                logging.debug(self.client.q.prev_song_path)
                 self.client.gui_to_client_queue.put("prev")
                 self.playing = True
                 self.play_pause_button.config(text="⏹")
         except Exception as e:
-            print(f"Error in prev_song: {e}")
+            logging.debug(f"Error in prev_song: {e}")
             messagebox.showerror("Error", f"Failed to play previous song: {e}")
 
     def next_song(self):
@@ -888,14 +904,14 @@ class UserInterface:
         Sends a 'next' command to the client via queue and updates the UI.
         """
         try:
-            print("next song")
+            logging.debug("next song")
             if not self.client.q.my_queue.empty():
                 self.playing = True
                 self.play_pause_button.config(text="⏹")
                 self.client.gui_to_client_queue.put("next")
-            print(self.playing)
+            logging.debug(self.playing)
         except Exception as e:
-            print(f"Error in next_song: {e}")
+            logging.debug(f"Error in next_song: {e}")
             messagebox.showerror("Error", f"Failed to play next song: {e}")
 
     def play_pause(self):
@@ -904,12 +920,12 @@ class UserInterface:
         Sends 'play', 'resume', or 'pause' command via the client queue based on the current state.
         """
         try:
-            print(self.playing)
-            print(self.client.q.my_queue.empty())
+            logging.debug(self.playing)
+            logging.debug(self.client.q.my_queue.empty())
 
             if not self.playing:
                 if not (self.client.q.my_queue.empty() and self.client.p.current_file == ""):
-                    print(self.client.p.current_file)
+                    logging.debug(self.client.p.current_file)
                     self.play_pause_button.config(text="⏹")
 
                     if self.counter == 0:
@@ -927,7 +943,7 @@ class UserInterface:
                 self.playing = False
 
         except Exception as e:
-            print(f"Error in play_pause: {e}")
+            logging.debug(f"Error in play_pause: {e}")
             messagebox.showerror("Error", f"Failed to toggle play/pause: {e}")
 
     def check_result_queue(self):
@@ -938,7 +954,7 @@ class UserInterface:
         """
         try:
             result = self.client.client_to_gui_queue.get_nowait()
-            print("Result from thread:", result)
+            logging.debug("Result from thread:", result)
             if result == "nothing to play":
                 self.playing = False
                 self.play_pause_button.config(text="▶")
@@ -961,4 +977,4 @@ if __name__ == "__main__":
         app = UserInterface(root1, client1)
         app.start()
     except Exception as error:
-        print(error)
+        logging.debug(error)
