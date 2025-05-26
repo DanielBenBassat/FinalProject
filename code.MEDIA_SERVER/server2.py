@@ -8,7 +8,7 @@ import ssl
 
 
 class MediaServer:
-    def __init__(self, ip, port, folder, secret_key, cert_file, key_file, queue_len=1, log_dir='logs', log_file='server2.log'):
+    def __init__(self, ip, port, folder, secret_key, cert_file, key_file, queue_len=1, log_dir='log3', log_file='server.log'):
         """
        Initializes the MediaServer with networking configuration,
        folder for storing songs, SSL settings, and logging.
@@ -32,9 +32,7 @@ class MediaServer:
         self.queue_len = queue_len
         self.log_dir = log_dir
         self.log_file = os.path.join(log_dir, log_file)
-
         self._setup_folders()
-        self._setup_logging()
 
         self.CERT_FILE = cert_file
         self.KEY_FILE = key_file
@@ -80,15 +78,13 @@ class MediaServer:
             os.makedirs(self.folder)
         if not os.path.exists(self.log_dir):
             os.makedirs(self.log_dir)
-
-    def _setup_logging(self):
         logging.basicConfig(
             format='%(levelname)s | %(asctime)s | %(message)s',
             filename=self.log_file,
-            level=logging.DEBUG
-        )
+            level=logging.DEBUG)
 
-    def logging_protocol(self, func, cmd, data):
+    @staticmethod
+    def logging_protocol(func, cmd, data):
         try:
             msg = func + " : " + cmd
             for i in data:
@@ -142,8 +138,14 @@ class MediaServer:
             logging.debug(f"Unexpected error while sending {song_name}: {e}")
             data = ["F", "Unexpected error"]
         finally:
-            protocol_send(client_socket, cmd, data)
-            self.logging_protocol("send", cmd, data)
+            try:
+                protocol_send(client_socket, cmd, data)
+                self.logging_protocol("send", cmd, data)
+            except Exception as e:
+                logging.debug(f"Unexpected error while sending {song_name}: {e}")
+            finally:
+                if client_socket and cmd == "get":
+                    client_socket.close()
 
     def add_song(self, song_byte, song_name):
         """
@@ -201,7 +203,7 @@ class MediaServer:
             elif cmd == "hlo":
                 res = ["T"]
                 protocol_send(client_socket, cmd, res)
-                self.logging_protocol("send", cmd, res)
+                # self.logging_protocol("send", cmd, res)
 
             elif cmd == "vrf":
                 song_path = os.path.join(self.folder, f"{data[1]}.mp3")
@@ -215,10 +217,16 @@ class MediaServer:
             elif cmd == "bkg":
                 try:
                     token, song_name, ip, port = data[1], str(data[2]), data[3], int(data[4])
-                    with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
-                        ssl_s = self.create_ssl_socket(s, ip)
-                        ssl_s.connect((ip, port))
-                        self.send_song("bkp", s, song_name, token)
+                    protocol_send(client_socket, cmd, ["T"])
+                    self.logging_protocol("send", cmd, ["T"])
+
+                    s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+                    ssl_s = self.create_ssl_socket(s, ip)
+                    ssl_s.connect((ip, port))
+                    self.send_song("bkp", ssl_s, song_name, token)
+                    cmd, data = protocol_receive(ssl_s)
+                    self.logging_protocol("recv", cmd, data)
+                    ssl_s.close()
                 except Exception as e:
                     logging.debug(f"Failed to connect to secondary server: {e}")
 
@@ -226,6 +234,8 @@ class MediaServer:
                 result = self.add_song(data[2], str(data[1]))
                 if result:
                     logging.debug("Song uploaded")
+                protocol_send(client_socket, cmd, ["T"])
+                self.logging_protocol("send", cmd, ["T"])
 
         except socket.error as e:
             logging.debug("Socket error: " + str(e))
@@ -246,9 +256,13 @@ class MediaServer:
                 s.listen(self.queue_len)
                 logging.debug(f"Media server started at {self.ip}:{self.port}")
                 while True:
-                    client_socket, client_addr = s.accept()
-                    ssl_socket = self.context.wrap_socket(client_socket, server_side=True)
-                    threading.Thread(target=self.handle_client, args=(ssl_socket, client_addr)).start()
+                    try:
+                        client_socket, client_addr = s.accept()
+                        ssl_socket = self.context.wrap_socket(client_socket, server_side=True)
+                        threading.Thread(target=self.handle_client, args=(ssl_socket, client_addr)).start()
+                    except Exception as e:
+                        logging.debug(f"Error accepting or handling connection: {e}")
+                        break
             except socket.error as e:
                 logging.debug(f"Socket error on main socket: {e}")
 
@@ -257,10 +271,10 @@ if __name__ == "__main__":
     server = MediaServer(
         ip="127.0.0.1",
         port=3333,
-        folder=r"C:\musicCyber",
+        folder=r"C:\server2_musicCyber",
         secret_key="my_secret_key",
-        cert_file= "certificate2.crt",
-        key_file= "privateKey2.key",
+        cert_file="certificate2.crt",
+        key_file="privateKey2.key",
         queue_len=1,
         log_dir="log3",
         log_file="server2.log"

@@ -8,11 +8,11 @@ import ssl
 
 
 class MediaServer:
-    def __init__(self, ip, port, folder, secret_key, cert_file, key_file, queue_len=1, log_dir='logs', log_file='server.log'):
+    def __init__(self, ip, port, folder, secret_key, cert_file, key_file, queue_len=1, log_dir='log3', log_file='server.log'):
         """
-       Initializes the MediaServer with networking configuration, 
+       Initializes the MediaServer with networking configuration,
        folder for storing songs, SSL settings, and logging.
-    
+
        :param ip: str - The IP address the server binds to.
        :param port: int - The port number the server listens on.
        :param folder: str - Path to the directory where songs are stored.
@@ -22,7 +22,7 @@ class MediaServer:
        :param queue_len: int, optional - Maximum number of queued client connections (default is 1).
        :param log_dir: str, optional - Directory where log files are stored (default is 'logs').
        :param log_file: str, optional - Name of the log file (default is 'server.log').
-    
+
        :return: None
        """
         self.ip = ip
@@ -32,9 +32,7 @@ class MediaServer:
         self.queue_len = queue_len
         self.log_dir = log_dir
         self.log_file = os.path.join(log_dir, log_file)
-
         self._setup_folders()
-        self._setup_logging()
 
         self.CERT_FILE = cert_file
         self.KEY_FILE = key_file
@@ -45,7 +43,7 @@ class MediaServer:
         self.context2 = ssl.SSLContext(ssl.PROTOCOL_TLS_CLIENT)
         self.context2.check_hostname = False
         self.context2.verify_mode = ssl.CERT_NONE
-        
+
     def create_ssl_socket(self, client_socket, ip):
         """
         Wraps a plain TCP socket with SSL/TLS encryption using the client's SSL context.
@@ -69,7 +67,7 @@ class MediaServer:
         except Exception as e:
             logging.error(f"Unexpected error in create_ssl_socket: {e}")
             raise
-        
+
     def _setup_folders(self):
         """
         Creates the media and log directories if they do not exist.
@@ -80,15 +78,13 @@ class MediaServer:
             os.makedirs(self.folder)
         if not os.path.exists(self.log_dir):
             os.makedirs(self.log_dir)
-
-    def _setup_logging(self):
         logging.basicConfig(
             format='%(levelname)s | %(asctime)s | %(message)s',
             filename=self.log_file,
-            level=logging.DEBUG
-        )
+            level=logging.DEBUG)
 
-    def logging_protocol(self, func, cmd, data):
+    @staticmethod
+    def logging_protocol(func, cmd, data):
         try:
             msg = func + " : " + cmd
             for i in data:
@@ -148,7 +144,8 @@ class MediaServer:
             except Exception as e:
                 logging.debug(f"Unexpected error while sending {song_name}: {e}")
             finally:
-                if client_socket:
+                if client_socket and cmd == "get":
+                    logging.debug("close socket with client")
                     client_socket.close()
 
     def add_song(self, song_byte, song_name):
@@ -182,7 +179,8 @@ class MediaServer:
         logging.debug(f"Client connected: {client_address}")
         try:
             cmd, data = protocol_receive(client_socket)
-            self.logging_protocol("recv", cmd, data)
+            if cmd != "hlo":
+                self.logging_protocol("recv", cmd, data)
 
             token = data[0]
             valid = self.verify_token(token)
@@ -207,7 +205,7 @@ class MediaServer:
             elif cmd == "hlo":
                 res = ["T"]
                 protocol_send(client_socket, cmd, res)
-                self.logging_protocol("send", cmd, res)
+                # self.logging_protocol("send", cmd, res)
 
             elif cmd == "vrf":
                 song_path = os.path.join(self.folder, f"{data[1]}.mp3")
@@ -221,10 +219,16 @@ class MediaServer:
             elif cmd == "bkg":
                 try:
                     token, song_name, ip, port = data[1], str(data[2]), data[3], int(data[4])
-                    with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
-                        ssl_s = self.create_ssl_socket(s, ip)
-                        ssl_s.connect((ip, port))
-                        self.send_song("bkp", ssl_s, song_name, token)
+                    protocol_send(client_socket, cmd, ["T"])
+                    self.logging_protocol("send", cmd, ["T"])
+
+                    s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+                    ssl_s = self.create_ssl_socket(s, ip)
+                    ssl_s.connect((ip, port))
+                    self.send_song("bkp", ssl_s, song_name, token)
+                    cmd, data = protocol_receive(ssl_s)
+                    self.logging_protocol("recv", cmd, data)
+                    ssl_s.close()
                 except Exception as e:
                     logging.debug(f"Failed to connect to secondary server: {e}")
 
@@ -232,6 +236,8 @@ class MediaServer:
                 result = self.add_song(data[2], str(data[1]))
                 if result:
                     logging.debug("Song uploaded")
+                protocol_send(client_socket, cmd, ["T"])
+                self.logging_protocol("send", cmd, ["T"])
 
         except socket.error as e:
             logging.debug("Socket error: " + str(e))
@@ -269,8 +275,8 @@ if __name__ == "__main__":
         port=2222,
         folder=r"C:\musicCyber",
         secret_key="my_secret_key",
-        cert_file= "certificate.crt",
-        key_file= "privateKey.key",
+        cert_file="certificate.crt",
+        key_file="privateKey.key",
         queue_len=1,
         log_dir="log3",
         log_file="server.log"

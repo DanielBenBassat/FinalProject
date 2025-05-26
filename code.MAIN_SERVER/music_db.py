@@ -12,7 +12,6 @@ LOG_FILE_DB = os.path.join(LOG_DIR, 'music_db.log')
 LOG_FORMAT = '%(levelname)s | %(asctime)s | %(name)s | %(message)s'
 
 
-
 class MusicDB(DataBase):
     def __init__(self, name, address_list):
         super().__init__(name)
@@ -81,8 +80,7 @@ class MusicDB(DataBase):
         logger.addHandler(file_handler)
         return logger
 
-    @staticmethod
-    def logging_protocol(func, cmd, data):
+    def logging_protocol(self, func, cmd, data):
         """
         Logs a debug message composed of the function name, command, and data items.
 
@@ -98,7 +96,7 @@ class MusicDB(DataBase):
             for i in data:
                 if not isinstance(i, bytes):
                     msg += ", " + str(i)
-            logging.debug(msg)
+            self.task_log.debug(msg)
         except Exception as e:
             logging.debug(e)
 # **********************************************************************************************88
@@ -212,7 +210,6 @@ class MusicDB(DataBase):
             existing = self.select("songs", "*", {"name": song_name, "artist": artist})
             if existing:
                 self.music_db_log.debug(f"add_song: Song already exists: {existing}")
-                print("שיר כבר קיים:", existing)
                 return ["F", "existing"]
 
             data = {"name": song_name, "artist": artist}
@@ -235,7 +232,7 @@ class MusicDB(DataBase):
 
             song_id = str(song_id[0][0])
             self.music_db_log.debug(f"add_song: Added song '{song_name}' by '{artist}' with ID {song_id} at {ip}:{port}")
-            print(song_id)
+            self.music_db_log.debug(song_id)
             return ["T", song_id, ip, port]
 
         except Exception as e:
@@ -300,7 +297,7 @@ class MusicDB(DataBase):
             song_exists = self.select("songs", where_condition={"id": song_id})
             if not song_exists:
                 msg = f"Error: Song with ID {song_id} does not exist."
-                print(msg)
+                self.music_db_log.debug(msg)
                 return ["F", "Song with ID does not exist"]
 
             # Check if song is already in playlist
@@ -311,7 +308,7 @@ class MusicDB(DataBase):
             })
             if song_in_playlist:
                 msg = f"Song already exists in playlist '{playlist_name}' for user '{username}'."
-                print(msg)
+                self.music_db_log.debug(msg)
                 return ["F", "Song is already in playlist"]
 
             # Add song to playlist
@@ -322,7 +319,7 @@ class MusicDB(DataBase):
             }
             self.insert("playlists", data)
             msg = f"✅ Song {song_id} added to playlist '{playlist_name}' for user '{username}'."
-            print(msg)
+            self.music_db_log.debug(msg)
             return ["T"]
         except Exception as e:
             self.music_db_log.debug(f"add_to_playlist exception: {e}")
@@ -342,7 +339,7 @@ class MusicDB(DataBase):
             song_exists = self.select("songs", where_condition={"id": song_id})
             if not song_exists:
                 msg = f"Error: Song with ID {song_id} does not exist."
-                print(msg)
+                self.music_db_log.debug(msg)
                 return ["F", "Song with ID does not exist"]
 
             # Check if song is in playlist
@@ -353,7 +350,7 @@ class MusicDB(DataBase):
             })
             if not song_in_playlist:
                 msg = f"Error: Song {song_id} not found in playlist '{playlist_name}' for user '{username}'."
-                print(msg)
+                self.music_db_log.debug(msg)
                 return ["F", "Song is not in playlist"]
 
             # Remove song from playlist
@@ -364,7 +361,6 @@ class MusicDB(DataBase):
             })
             msg = f"✅ Song {song_id} removed from playlist '{playlist_name}' for user '{username}'."
             self.music_db_log.debug(msg)
-            print(msg)
             return ["T"]
         except Exception as e:
             self.music_db_log.debug(f"remove_from_playlist exception: {e}")
@@ -446,31 +442,33 @@ class MusicDB(DataBase):
                     ssl_socket.connect(address)  # address is (host, port) tuple
 
                     protocol_send(ssl_socket, cmd, data)
+                    # self.logging_protocol("send", cmd, data)
                     cmd_resp, data_resp = protocol_receive(ssl_socket)
+                    # self.logging_protocol("receive", cmd_resp, data_resp)
 
                     if data_resp[0] == "T":
                         if setting != "active":
                             self.task_log.debug(f"Server {address} responded with 'T'. Marking as active.")
-                            self.update("servers", {"setting": "active"}, {"IP": address[0], "port": address[1]},)
+                            self.update("servers", {"setting": "active"}, {"IP": address[0], "port": address[1]})
                     else:
-                        self.task_log.debug(
-                            f"Server {address} responded with unexpected message: {data_resp}"
-                        )
+                        self.task_log.debug(f"Server {address} responded with unexpected message: {data_resp}")
                         if setting != "fallen":
                             self.update("servers", {"setting": "fallen"}, {"IP": address[0], "port": address[1]},)
-
                 except socket.timeout:
                     self.task_log.debug(f"Server {address} timed out.")
                     if setting != "fallen":
                         self.update("servers", {"setting": "fallen"}, {"IP": address[0], "port": address[1]},)
+
+                except socket.error as e:
+                    self.task_log.debug(f"Socket error with server address: {e}, {address}")
+                    if setting is not None and setting != "fallen" and address is not None:
+                        self.update("servers", {"setting": "fallen"}, {"IP": address[0], "port": address[1]},)
                 finally:
                     if ssl_socket:
                         ssl_socket.close()
-        except socket.error as e:
-            self.task_log.debug(f"Socket error with server address: {e}")
-            if setting is not None and setting != "fallen" and address is not None:
-                self.update("servers", {"setting": "fallen"}, {"IP": address[0], "port": address[1]},)
 
+        except Exception as e:
+            self.task_log.debug(f"error in check servers: {e}")
         finally:
             fallen_servers = self.select("servers", "*", {"setting": "fallen"})
             self.task_log.debug(f"Current servers state: {fallen_servers}")
@@ -514,16 +512,13 @@ class MusicDB(DataBase):
                 except ValueError as e:
                     err_msg = f"Error converting port to integer for song ID {e}"
                     self.task_log.error(err_msg)
-                    print(err_msg)
                 except Exception as e:
                     err_msg = f"Unexpected error processing song ID {e}"
                     self.task_log.error(err_msg)
-                    print(err_msg)
 
         except Exception as e:
             err_msg = f"Database or connection error in verify_songs: {e}"
             self.task_log.error(err_msg)
-            print(err_msg)
 
     def verify_songs_func(self, token, song_id, server_address):
         """
@@ -552,7 +547,6 @@ class MusicDB(DataBase):
         except socket.error as e:
             err_msg = f"Connection failed to media server {server_address}: {e}"
             self.task_log.error(err_msg)
-            print(err_msg)
 
     def backup_songs(self, token, token2):
         """
@@ -584,7 +578,7 @@ class MusicDB(DataBase):
                             address2 = self.find_address()  # new address for backup
                             if address2 != address:
                                 temp = True
-                        self.task_log.debug(f"Backing up song {song_id} from {address} to {address2}")
+                        # self.task_log.debug(f"Backing up song {song_id} from {address} to {address2}")
                         val = self.backup_func(token, token2, song_id, address, address2)
                         if val:
                             data = {"ip2": address2[0], "port2": address2[1]}
@@ -592,11 +586,9 @@ class MusicDB(DataBase):
                             self.update("songs", data, {"id": int(song_id)})
                 except Exception as e:
                     self.task_log.error(f"Error backing up song {e}")
-                    print(f"Error backing up song {e}")
         except Exception as e:
             err_msg = f"Error during backup_songs process: {e}"
             self.task_log.error(err_msg)
-            print(err_msg)
 
     def backup_func(self, token, token2, song_id, server1, server2):
         """
@@ -619,13 +611,13 @@ class MusicDB(DataBase):
             data = [token, token2, song_id, server2[0], server2[1]]
             protocol_send(ssl_socket, cmd, data)
             self.logging_protocol("send", cmd, data)
-
+            cmd, data = protocol_receive(ssl_socket)
+            self.logging_protocol("recv", cmd, data)
             ssl_socket.close()
             val = True
             self.task_log.info(f"Backup command sent for song ID {song_id} from {server1} to {server2}")
         except socket.error as e:
             err_msg = f"Connection failed during backup for song ID {song_id}: {e}"
             self.task_log.error(err_msg)
-            print(err_msg)
         finally:
             return val

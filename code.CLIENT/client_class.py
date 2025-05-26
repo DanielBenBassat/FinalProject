@@ -93,7 +93,6 @@ class Client:
             self.client_log.error(f"Unexpected error in create_ssl_socket: {e}")
             raise
 
-
     @staticmethod
     def setup_logger(name, log_file):
         """
@@ -140,8 +139,6 @@ class Client:
                 self.client_log.debug(f"Logging protocol error: {e}")
             else:
                 print(f"Logging protocol error: {e}")
-
-
 
     def start_client(self, cmd, username, password):
         """

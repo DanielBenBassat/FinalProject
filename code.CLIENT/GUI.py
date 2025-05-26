@@ -3,21 +3,12 @@ from client_class import Client
 import queue
 from tkinter import messagebox
 import hashlib
-import os
 import logging
 
 IP = "127.0.0.1"
 PORT = 5555
 SCREEN_WIDTH = 700
 SCREEN_HEIGHT = 600
-
-LOG_FORMAT = '%(levelname)s | %(asctime)s | %(message)s'
-LOG_LEVEL = logging.DEBUG
-LOG_DIR = 'log'
-LOG_FILE = os.path.join(LOG_DIR, 'gui.log')
-if not os.path.isdir(LOG_DIR):
-    os.makedirs(LOG_DIR)
-logging.basicConfig(format=LOG_FORMAT, filename=LOG_FILE, level=LOG_LEVEL)
 
 
 class UserInterface:
@@ -48,17 +39,8 @@ class UserInterface:
             self.show_frame("welcome")
             self.root.protocol("WM_DELETE_WINDOW", self.closing)
 
-
         except Exception as e:
             print(f"[ERROR] Failed to initialize UserInterface: {e}")
-            
-    def _setup_logging(self):
-        try:
-            if not os.path.isdir(self.LOG_DIR):
-                os.makedirs(self.LOG_DIR)
-            logging.basicConfig(format=self.LOG_FORMAT, filename=self.LOG_FILE, level=self.LOG_LEVEL)
-        except Exception as e:
-            print(f"Failed to setup logging: {e}")
 
     def show_frame(self, frame_name):
         """
@@ -289,9 +271,9 @@ class UserInterface:
             password = password_var.get()
             confirm_password = confirm_password_var.get()
 
-            logging.debug("Username:", username)
-            logging.debug("Password:", password)
-            logging.debug("Confirm Password:", confirm_password)
+            logging.debug("Username:" + username)
+            logging.debug("Password:" + password)
+            logging.debug("Confirm Password:" + confirm_password)
 
             # Validate input
             if not username or not password or not confirm_password:
@@ -543,7 +525,7 @@ class UserInterface:
             btn_style = {
                 "bg": "#1E90FF",  # כחול אחיד לכל הכפתורים
                 "fg": "white",
-                "font": ("Helvetica", 10, "bold"),
+                "font": ("Helvetica", 9, "bold"),
                 "relief": "flat",
                 "cursor": "hand2",
                 "padx": 8,
@@ -552,7 +534,7 @@ class UserInterface:
             }
 
             tk.Button(row, text="Play", command=lambda: self.play_song(song_id), **btn_style).pack(side="left", padx=6)
-            tk.Button(row, text="Ad to Queue", command=lambda: self.add_song_to_queue(song_id), **btn_style).pack(side="left", padx=6)
+            tk.Button(row, text="Add to Queue", command=lambda: self.add_song_to_queue(song_id), **btn_style).pack(side="left", padx=6)
 
             # Like button - לב אדום אם מאוהב, אפור אם לא
             liked = song_id in self.client.liked_song
@@ -607,7 +589,7 @@ class UserInterface:
 
             if self.playing:
                 self.playing = False
-                self.counter = 0
+            self.counter = 0
 
             self.play_pause()
 
@@ -736,9 +718,9 @@ class UserInterface:
             artist_name = artist_name_var.get()
             song_path = song_path_var.get()
 
-            logging.debug("Song Name:", song_name)
-            logging.debug("Artist Name:", artist_name)
-            logging.debug("Song File Path:", song_path)
+            logging.debug("Song Name:" + song_name)
+            logging.debug("Artist Name:" + artist_name)
+            logging.debug("Song File Path:" + song_path)
 
             msg = self.client.upload_song(song_name, artist_name, song_path)
             logging.debug(msg)

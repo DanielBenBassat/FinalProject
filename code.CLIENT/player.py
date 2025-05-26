@@ -31,7 +31,6 @@ class MusicPlayer:
         except Exception as e:
             print(f"Failed to setup logging: {e}")
 
-
     def play_song(self, file_path, cmd_queue):
         """
         Plays the specified song from the beginning.

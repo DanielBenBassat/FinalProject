@@ -140,19 +140,20 @@ class DataBase:
         values = set_values + where_values  # Combine update values and WHERE values
 
         try:
-            logging.debug("🔹 Query:", update_query)  # For debugging
-            logging.debug("🔹 Values:", values)  # For debugging
+            logging.debug("Query:" + update_query)
+            logging.debug("Values:" + ",".join(where_values))
 
             self.cursor.execute(update_query, values)
             self.conn.commit()
-            logging.debug(f"✅ Successfully updated records in table {table_name}")
+            logging.debug(f"Successfully updated records in table {table_name}")
 
         except sqlite3.OperationalError as err:
-            logging.debug(f"❌ SQLite OperationalError: {err}")
+
+            logging.debug(f"SQLite OperationalError: {err}")
         except sqlite3.IntegrityError as err:
-            logging.debug(f"❌ SQLite IntegrityError: {err}")
+            logging.debug(f"SQLite IntegrityError: {err}")
         except Exception as e:
-            logging.debug(f"❌ Unexpected error: {e}")
+            logging.debug(f"Unexpected error: {e}")
 
     def delete(self, table_name, where):
         """
@@ -171,19 +172,19 @@ class DataBase:
         delete_query = f"DELETE FROM {table_name} WHERE {where_clause}"
 
         try:
-            logging.debug("🔹 Query:", delete_query)  # For debugging
-            logging.debug("🔹 Values:", where_values)  # For debugging
+            logging.debug("Query: " + delete_query)  # For debugging
+            logging.debug("Values: " + ",".join(where_values))  # For debugging
 
             self.cursor.execute(delete_query, where_values)
             self.conn.commit()
-            logging.debug(f"✅ Successfully deleted records from table {table_name}")
+            logging.debug(f"Successfully deleted records from table {table_name}")
 
         except sqlite3.OperationalError as err:
-            logging.debug(f"❌ SQLite OperationalError: {err}")
+            logging.debug(f"SQLite OperationalError: {err}")
         except sqlite3.IntegrityError as err:
-            logging.debug(f"❌ SQLite IntegrityError: {err}")
+            logging.debug(f"SQLite IntegrityError: {err}")
         except Exception as e:
-            logging.debug(f"❌ Unexpected error: {e}")
+            logging.debug(f"Unexpected error: {e}")
 
 
 if __name__ == "__main__":
@@ -228,4 +229,4 @@ if __name__ == "__main__":
     result = db.select("users", where_condition={"username": "alice", "age": 28}, cond="OR")
     assert len(result) >= 1, "❌ SELECT עם תנאי OR לא עבד"
 
-    logging.debug("✅ כל הבדיקות עברו בהצלחה.")
+    logging.debug("tests have succeeded")

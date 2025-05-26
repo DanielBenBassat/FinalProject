@@ -36,24 +36,22 @@ class MainServer:
         self.LOG_LEVEL = logging.DEBUG
         self.LOG_DIR = 'log2'
         self.LOG_FILE = os.path.join(self.LOG_DIR, 'main_server.log')
-
-        self._setup_logging()
+        self.main_server_log = self.setup_logger("main_server.log", self.LOG_FILE)
         self.context = ssl.SSLContext(ssl.PROTOCOL_TLS_SERVER)
         self.context.load_cert_chain(certfile=self.CERT_FILE, keyfile=self.KEY_FILE)
 
+    def setup_logger(self, name, log_file):
+        """Set up a logger that logs to a specific file"""
+        logger = logging.getLogger(name)
+        logger.setLevel(logging.DEBUG)
+        file_handler = logging.FileHandler(log_file)
+        file_handler.setLevel(logging.DEBUG)
+        formatter = logging.Formatter(self.LOG_FORMAT)
+        file_handler.setFormatter(formatter)
+        logger.addHandler(file_handler)
+        return logger
 
-
-    def _setup_logging(self):
-        try:
-            if not os.path.isdir(self.LOG_DIR):
-                os.makedirs(self.LOG_DIR)
-            logging.basicConfig(format=self.LOG_FORMAT, filename=self.LOG_FILE, level=self.LOG_LEVEL)
-        except Exception as e:
-            print(f"Failed to setup logging: {e}")
-
-
-    @staticmethod
-    def logging_protocol(func, cmd, data):
+    def logging_protocol(self, func, cmd, data):
         """
         Logs a debug message composed of the function name, command, and data items.
 
@@ -69,9 +67,9 @@ class MainServer:
             for i in data:
                 if not isinstance(i, bytes):
                     msg += ", " + str(i)
-            logging.debug(msg)
+            self.main_server_log.debug(msg)
         except Exception as e:
-            logging.debug(e)
+            self.main_server_log.debug(e)
 
     def generate_token(self, username):
         """
@@ -123,7 +121,7 @@ class MainServer:
         :param client_socket: Socket connected to the client.
         :return: True if login/signup successful, False otherwise.
         """
-        logging.debug("Waiting for login or signup")
+        self.main_server_log.debug("Waiting for login or signup")
         songs_dict = pickle.dumps(db.all_songs())
 
         while True:
@@ -158,7 +156,7 @@ class MainServer:
                         return True
 
                 elif cmd in ("ext", "error"):
-                    logging.debug("EXT command received")
+                    self.main_server_log.debug("EXT command received")
                     return False
 
     def handle_client(self, client_socket):
@@ -216,10 +214,10 @@ class MainServer:
                 self.logging_protocol("send", cmd, response_data)
 
         except Exception as e:
-            logging.error(f"[ERROR] Exception in client handling: {e}")
+            self.main_server_log.error(f"[ERROR] Exception in client handling: {e}")
         finally:
             client_socket.close()
-            logging.debug("Client disconnected")
+            self.main_server_log.debug("Client disconnected")
 
     def start(self):
         """
@@ -228,7 +226,7 @@ class MainServer:
         server_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         server_socket.bind((self.IP, self.PORT))
         server_socket.listen()
-        logging.debug("Server started and listening...")
+        self.main_server_log.debug("Server started and listening...")
 
         background = threading.Thread(target=self.background_task, daemon=True)
         background.start()
@@ -242,12 +240,12 @@ class MainServer:
                 thread = threading.Thread(target=self.handle_client, args=(ssl_socket,))
                 self.THREADS.append(thread)
                 thread.start()
-                logging.debug(f"[ACTIVE CONNECTIONS] {threading.active_count() - 2}")
+                self.main_server_log.debug(f"[ACTIVE CONNECTIONS] {threading.active_count() - 2}")
         except Exception as e:
-            logging.error(f"Server error: {e}")
+            self.main_server_log.error(f"Server error: {e}")
         finally:
             server_socket.close()
-            logging.debug("Server closed")
+            self.main_server_log.debug("Server closed")
 
 
 if __name__ == "__main__":
