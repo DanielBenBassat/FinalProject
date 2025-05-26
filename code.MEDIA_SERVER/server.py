@@ -142,8 +142,14 @@ class MediaServer:
             logging.debug(f"Unexpected error while sending {song_name}: {e}")
             data = ["F", "Unexpected error"]
         finally:
-            protocol_send(client_socket, cmd, data)
-            self.logging_protocol("send", cmd, data)
+            try:
+                protocol_send(client_socket, cmd, data)
+                self.logging_protocol("send", cmd, data)
+            except Exception as e:
+                logging.debug(f"Unexpected error while sending {song_name}: {e}")
+            finally:
+                if client_socket:
+                    client_socket.close()
 
     def add_song(self, song_byte, song_name):
         """
@@ -218,7 +224,7 @@ class MediaServer:
                     with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
                         ssl_s = self.create_ssl_socket(s, ip)
                         ssl_s.connect((ip, port))
-                        self.send_song("bkp", s, song_name, token)
+                        self.send_song("bkp", ssl_s, song_name, token)
                 except Exception as e:
                     logging.debug(f"Failed to connect to secondary server: {e}")
 
@@ -246,9 +252,13 @@ class MediaServer:
                 s.listen(self.queue_len)
                 logging.debug(f"Media server started at {self.ip}:{self.port}")
                 while True:
-                    client_socket, client_addr = s.accept()
-                    ssl_socket = self.context.wrap_socket(client_socket, server_side=True)
-                    threading.Thread(target=self.handle_client, args=(ssl_socket, client_addr)).start()
+                    try:
+                        client_socket, client_addr = s.accept()
+                        ssl_socket = self.context.wrap_socket(client_socket, server_side=True)
+                        threading.Thread(target=self.handle_client, args=(ssl_socket, client_addr)).start()
+                    except Exception as e:
+                        logging.debug(f"Error accepting or handling connection: {e}")
+                        break
             except socket.error as e:
                 logging.debug(f"Socket error on main socket: {e}")
 

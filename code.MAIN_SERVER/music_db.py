@@ -4,11 +4,13 @@ from protocol import protocol_receive
 from protocol import protocol_send
 import os
 import logging
+import ssl
 
 LOG_DIR = 'log2'
 LOG_FILE_TASK = os.path.join(LOG_DIR, 'background_task.log')
 LOG_FILE_DB = os.path.join(LOG_DIR, 'music_db.log')
 LOG_FORMAT = '%(levelname)s | %(asctime)s | %(name)s | %(message)s'
+
 
 
 class MusicDB(DataBase):
@@ -56,6 +58,11 @@ class MusicDB(DataBase):
         self.create_table("playlists", playlists_columns, foreign_key)
         self.task_log = self.setup_logger("TaskLogger", LOG_FILE_TASK)
         self.music_db_log = self.setup_logger("dbLogger", LOG_FILE_DB)
+
+        # contex2 for the action that the mian server connecting to other server
+        self.context2 = ssl.SSLContext(ssl.PROTOCOL_TLS_CLIENT)
+        self.context2.check_hostname = False
+        self.context2.verify_mode = ssl.CERT_NONE
 
     def insert_server_columns(self):
         for server in self.address_list:
@@ -393,6 +400,30 @@ class MusicDB(DataBase):
             return []
 
 # ****************************************************************
+    def create_ssl_socket(self, client_socket, ip):
+        """
+        Wraps a plain TCP socket with SSL/TLS encryption using the client's SSL context.
+
+        :param client_socket: A plain (non-encrypted) socket.socket object.
+        :param ip: The server's IP address or hostname used for SSL hostname verification.
+        :return: An SSL-wrapped socket with a timeout of 5 seconds set.
+        :raises ssl.SSLError: If an SSL-related error occurs during wrapping.
+        :raises socket.error: If a socket-related error occurs.
+        """
+        try:
+            ssl_socket = self.context2.wrap_socket(client_socket, server_hostname=ip)
+            ssl_socket.settimeout(5)
+            return ssl_socket
+        except ssl.SSLError as ssl_err:
+            logging.error(f"SSL error while wrapping socket: {ssl_err}")
+            raise  # אפשר להעביר את השגיאה הלאה או לטפל כאן בהתאם
+        except socket.error as sock_err:
+            logging.error(f"Socket error while setting up SSL socket: {sock_err}")
+            raise
+        except Exception as e:
+            logging.error(f"Unexpected error in create_ssl_socket: {e}")
+            raise
+
     def check_server(self, token):
         """
         Checks each server in self.address_list by sending a 'hlo' command with the given token.
@@ -408,31 +439,33 @@ class MusicDB(DataBase):
                 data = [token]
                 server = self.select("servers", "*", {"IP": address[0], "port": address[1]})
                 setting = server[0][3]  # setting column index
+                ssl_socket = None
+                try:
+                    s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+                    ssl_socket = self.create_ssl_socket(s, address[0])
+                    ssl_socket.connect(address)  # address is (host, port) tuple
 
-                with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
-                    try:
-                        s.settimeout(2)  # Max wait time 2 seconds
-                        s.connect(address)  # address is (host, port) tuple
+                    protocol_send(ssl_socket, cmd, data)
+                    cmd_resp, data_resp = protocol_receive(ssl_socket)
 
-                        protocol_send(s, cmd, data)
-                        cmd_resp, data_resp = protocol_receive(s)
-
-                        if data_resp[0] == "T":
-                            if setting != "active":
-                                self.task_log.debug(f"Server {address} responded with 'T'. Marking as active.")
-                                self.update("servers", {"setting": "active"}, {"IP": address[0], "port": address[1]},)
-                        else:
-                            self.task_log.debug(
-                                f"Server {address} responded with unexpected message: {data_resp}"
-                            )
-                            if setting != "fallen":
-                                self.update("servers", {"setting": "fallen"}, {"IP": address[0], "port": address[1]},)
-
-                    except socket.timeout:
-                        self.task_log.debug(f"Server {address} timed out.")
+                    if data_resp[0] == "T":
+                        if setting != "active":
+                            self.task_log.debug(f"Server {address} responded with 'T'. Marking as active.")
+                            self.update("servers", {"setting": "active"}, {"IP": address[0], "port": address[1]},)
+                    else:
+                        self.task_log.debug(
+                            f"Server {address} responded with unexpected message: {data_resp}"
+                        )
                         if setting != "fallen":
                             self.update("servers", {"setting": "fallen"}, {"IP": address[0], "port": address[1]},)
 
+                except socket.timeout:
+                    self.task_log.debug(f"Server {address} timed out.")
+                    if setting != "fallen":
+                        self.update("servers", {"setting": "fallen"}, {"IP": address[0], "port": address[1]},)
+                finally:
+                    if ssl_socket:
+                        ssl_socket.close()
         except socket.error as e:
             self.task_log.debug(f"Socket error with server address: {e}")
             if setting is not None and setting != "fallen" and address is not None:
@@ -504,15 +537,16 @@ class MusicDB(DataBase):
         try:
             self.task_log.debug(f"Connecting to media server at {server_address} for song ID {song_id}")
             media_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-            media_socket.connect(server_address)
+            ssl_socket = self.create_ssl_socket(media_socket, server_address[0])
+            ssl_socket.connect(server_address)
             self.task_log.info("Connection with media server successful!")
             cmd = "vrf"
             data = [token, song_id]
-            protocol_send(media_socket, cmd, data)
+            protocol_send(ssl_socket, cmd, data)
             self.logging_protocol("send", cmd, data)
-            cmd, data = protocol_receive(media_socket)  # "get", [file_name, file_bytes]
+            cmd, data = protocol_receive(ssl_socket)  # "get", [file_name, file_bytes]
             self.logging_protocol("recv", cmd, data)
-            media_socket.close()
+            ssl_socket.close()
             return data
 
         except socket.error as e:
@@ -578,14 +612,15 @@ class MusicDB(DataBase):
         val = False
         try:
             media_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-            media_socket.connect(server1)
+            ssl_socket = self.create_ssl_socket(media_socket, server1[0])
+            ssl_socket.connect(server1)
 
             cmd = "bkg"
             data = [token, token2, song_id, server2[0], server2[1]]
-            protocol_send(media_socket, cmd, data)
+            protocol_send(ssl_socket, cmd, data)
             self.logging_protocol("send", cmd, data)
 
-            media_socket.close()
+            ssl_socket.close()
             val = True
             self.task_log.info(f"Backup command sent for song ID {song_id} from {server1} to {server2}")
         except socket.error as e:

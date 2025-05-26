@@ -275,12 +275,12 @@ class Client:
 
             cmd = "get"
             data = [self.token, song_id]
-            protocol_send(media_socket, cmd, data)
+            protocol_send(ssl_media_socket, cmd, data)
             self.logging_protocol("send", cmd, data)
 
-            cmd, data = protocol_receive(media_socket)
+            cmd, data = protocol_receive(ssl_media_socket)
             self.logging_protocol("received", cmd, data)
-            media_socket.close()
+            ssl_media_socket.close()
 
             if data[0] == "F":
                 if data[1] in ("Token has expired", "Invalid token"):
@@ -394,11 +394,11 @@ class Client:
             # Send upload command
             cmd = "pst"
             data = [self.token, song_id, song_bytes]
-            protocol_send(media_socket, cmd, data)
+            protocol_send(ssl_media_socket, cmd, data)
             self.logging_protocol("send", cmd, data)
 
             # Receive response
-            cmd, data = protocol_receive(media_socket)
+            cmd, data = protocol_receive(ssl_media_socket)
             self.logging_protocol("received", cmd, data)
             result = data
 
@@ -406,7 +406,7 @@ class Client:
             if data[0] == "F" and data[1] in ("Token has expired", "Invalid token"):
                 self.is_expired = True
 
-            media_socket.close()
+            ssl_media_socket.close()
 
         except socket.error as e:
             self.client_log.error(f"Connection to media server failed: {e}")
