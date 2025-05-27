@@ -140,15 +140,14 @@ class DataBase:
         values = set_values + where_values  # Combine update values and WHERE values
 
         try:
-            logging.debug("Query:" + update_query)
-            logging.debug("Values:" + ",".join(where_values))
+            #logging.debug("Query:" + update_query)
+            #logging.debug("Values:" + ",".join(where_values))
 
             self.cursor.execute(update_query, values)
             self.conn.commit()
             logging.debug(f"Successfully updated records in table {table_name}")
 
         except sqlite3.OperationalError as err:
-
             logging.debug(f"SQLite OperationalError: {err}")
         except sqlite3.IntegrityError as err:
             logging.debug(f"SQLite IntegrityError: {err}")

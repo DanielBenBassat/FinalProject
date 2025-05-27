@@ -442,9 +442,9 @@ class MusicDB(DataBase):
                     ssl_socket.connect(address)  # address is (host, port) tuple
 
                     protocol_send(ssl_socket, cmd, data)
-                    # self.logging_protocol("send", cmd, data)
+                    self.logging_protocol("send", cmd, data)
                     cmd_resp, data_resp = protocol_receive(ssl_socket)
-                    # self.logging_protocol("receive", cmd_resp, data_resp)
+                    self.logging_protocol("receive", cmd_resp, data_resp)
 
                     if data_resp[0] == "T":
                         if setting != "active":
@@ -475,8 +475,10 @@ class MusicDB(DataBase):
 
     def verify_songs(self, token):
         """
-        Verify songs that are in 'pending' status and update their status if available.
-        """
+       Verify songs that are marked as 'pending' and update their status based on availability.
+
+       :param token: Access token used to authenticate with the media server during verification.
+       """
         try:
             # Fetch songs pending verification
             songs_pending = self.select("songs", '*', {"setting1": "pending", "setting2": "pending"}, "OR")

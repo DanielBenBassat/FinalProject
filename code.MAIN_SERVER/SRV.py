@@ -219,7 +219,7 @@ class MainServer:
             client_socket.close()
             self.main_server_log.debug("Client disconnected")
 
-    def start(self):
+    def start_main_server(self):
         """
         Starts the server: binds socket, listens for clients, and spawns handler threads.
         """
@@ -257,4 +257,4 @@ if __name__ == "__main__":
         address_list=[("127.0.0.1", 2222), ("127.0.0.1", 3333)],
         secret_key="my_secret_key"
     )
-    server.start()
+    server.start_main_server()

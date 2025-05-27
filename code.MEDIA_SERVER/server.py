@@ -85,6 +85,16 @@ class MediaServer:
 
     @staticmethod
     def logging_protocol(func, cmd, data):
+        """"
+        Logs a debug message composed of the function name, command, and data items.
+
+        The message format is: "<func> : <cmd>, <data_item1>, <data_item2>, ...".
+        Bytes-type items in `data` are skipped and not included in the message.
+
+        :param func: Name of the function or operation (string).
+        :param cmd: Command or action description (string).
+        :param data: Iterable containing data items to log.
+        """
         try:
             msg = func + " : " + cmd
             for i in data:
@@ -95,6 +105,12 @@ class MediaServer:
             logging.debug(e)
 
     def verify_token(self, token):
+        """
+        Verifies the validity of a JWT token.
+
+        :param token: The JWT token to be verified.
+        :return: A dictionary indicating validity and payload or error message.
+        """
         try:
             payload = jwt.decode(token, self.secret_key, algorithms=["HS256"])
             logging.debug("Token is valid")
@@ -205,7 +221,7 @@ class MediaServer:
             elif cmd == "hlo":
                 res = ["T"]
                 protocol_send(client_socket, cmd, res)
-                # self.logging_protocol("send", cmd, res)
+                self.logging_protocol("send", cmd, res)
 
             elif cmd == "vrf":
                 song_path = os.path.join(self.folder, f"{data[1]}.mp3")
