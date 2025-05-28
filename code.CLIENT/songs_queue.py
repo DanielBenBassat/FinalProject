@@ -8,7 +8,6 @@ class SongsQueue:
         Initializes the song queue and tracks recent, previous, and old songs.
         """
         self.my_queue = queue.Queue()  # queue of file paths
-        self.previous_songs_stack = []
         self.recent_song_path = ""
         self.prev_song_path = ""
         self.old_song_path = ""
