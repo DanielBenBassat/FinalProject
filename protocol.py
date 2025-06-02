@@ -39,6 +39,8 @@ def protocol_send(my_socket, cmd, data):
             temp = sign + i_length + "!"
             msg += temp.encode() + encoded_data
         my_socket.send(msg)
+
+        #print(msg[20])
         print("sent_succe")
     except socket.timeout:
         print("Timeout occurred while waiting for response")

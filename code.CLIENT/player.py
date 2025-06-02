@@ -65,7 +65,7 @@ class MusicPlayer:
 
                 pygame.time.Clock().tick(30)
 
-            logging.debug("⏹️ Song ended.")
+            logging.debug("Song ended.")
 
         except pygame.error as e:
             logging.debug(f"Error playing song '{file_path}': {e}")

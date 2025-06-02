@@ -623,3 +623,4 @@ class MusicDB(DataBase):
             self.task_log.error(err_msg)
         finally:
             return val
+

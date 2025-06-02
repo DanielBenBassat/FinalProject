@@ -317,6 +317,7 @@ class Client:
 
             # Get media server address for the new song
             data = self.get_address_new_song(song_name, artist)
+            print(data)
             if data[0] == "F":
                 if data[1] in ("Token has expired", "Invalid token"):
                     self.is_expired = True
@@ -668,7 +669,7 @@ class Client:
                 song_path = self.q.get_song(cmd)
                 self.queue_logging()
                 if os.path.exists(song_path):
-                    self.p.play_song(song_path, self.gui_to_client_queue)  # שהתור ריק השיר מתנגן ושיש בו משהו הפעולה מופסקת
+                    self.p.play_song(song_path, self.gui_to_client_queue)  # ניגון השיר מופסק במידה שהגיע פקודה חדשה בתור
                 else:
                     self.player_log.debug("song not found")
                 cmd = "play"

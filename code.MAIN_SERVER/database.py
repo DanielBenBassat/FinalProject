@@ -203,29 +203,33 @@ if __name__ == "__main__":
 
     # בדיקת insert
     db.insert("users", {"username": "alice", "age": 30})
+    # Retrieve the user "alice" and verify data correctness
     result = db.select("users", where_condition={"username": "alice"})
-    assert len(result) == 1, "❌ שורה לא הוזנה"
-    assert result[0][1] == "alice", "❌ שם משתמש שגוי"
-    assert result[0][2] == 30, "❌ גיל שגוי"
+    assert len(result) == 1, "Row was not inserted"
+    assert result[0][1] == "alice", "Incorrect username"
+    assert result[0][2] == 30, "Incorrect age"
 
-    # בדיקת update
+    # Test update operation – change Alice's age to 31
     db.update("users", {"age": 31}, {"username": "alice"})
     result = db.select("users", where_condition={"username": "alice"})
-    assert result[0][2] == 31, "❌ עדכון גיל נכשל"
+    assert result[0][2] == 31, "Age update failed"
 
-    # בדיקת insert נוסף
+    # Insert two more users: 'bob' and 'charlie'
     db.insert("users", {"username": "bob", "age": 25})
     db.insert("users", {"username": "charlie", "age": 28})
     all_users = db.select("users")
-    assert len(all_users) == 3, f"❌ לא הוזנו כל המשתמשים (נמצאו {len(all_users)})"
+    assert len(all_users) == 3, f"Not all users were inserted (found {len(all_users)})"
 
-    # בדיקת delete
+    # Delete the user 'bob' and check that he was actually removed
     db.delete("users", {"username": "bob"})
     usernames = [user[1] for user in db.select("users")]
-    assert "bob" not in usernames, "❌ המשתמש bob לא נמחק"
+    assert "bob" not in usernames, "User 'bob' was not deleted"
 
-    # בדיקת תנאי OR
+    # Test SELECT with OR condition: user with username 'alice' OR age 28
     result = db.select("users", where_condition={"username": "alice", "age": 28}, cond="OR")
-    assert len(result) >= 1, "❌ SELECT עם תנאי OR לא עבד"
+    assert len(result) >= 1, "SELECT with OR condition failed"
 
+    # Print success message to log
     logging.debug("tests have succeeded")
+
+

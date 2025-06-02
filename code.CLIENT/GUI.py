@@ -5,7 +5,7 @@ from tkinter import messagebox
 import hashlib
 import logging
 
-IP = "172.16.66.9"
+IP = "127.0.0.1"
 PORT = 5555
 SCREEN_WIDTH = 700
 SCREEN_HEIGHT = 600

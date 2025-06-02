@@ -7,6 +7,7 @@ class SongsQueue:
         """
         Initializes the song queue and tracks recent, previous, and old songs.
         """
+        #self.tests()
         self.my_queue = queue.Queue()  # queue of file paths
         self.recent_song_path = ""
         self.prev_song_path = ""
@@ -104,3 +105,65 @@ class SongsQueue:
                 self.my_queue.get()
         except Exception as e:
             print(f"Error clearing queue: {e}")
+
+
+    def tests(self):
+        sq = SongsQueue()
+
+        # Test add_to_queue and get_song
+        sq.add_to_queue("song1.mp3")
+        sq.add_to_queue("song2.mp3")
+
+        # First get_song call should return "song1.mp3"
+        song = sq.get_song(cmd="next")
+        assert song == "song1.mp3", "First song should be 'song1.mp3'"
+
+        # Second get_song call should return "song2.mp3"
+        song = sq.get_song(cmd="next")
+        assert song == "song2.mp3", "Second song should be 'song2.mp3'"
+
+        # Test previous song functionality
+        sq.prev_song_path = "prev_song.mp3"
+        sq.old_song_path = "old_song.mp3"
+        sq.recent_song_path = "song2.mp3"
+
+        prev_song = sq.get_song(cmd="prev")
+        assert prev_song == "prev_song.mp3", "Previous song should be returned"
+
+        # After calling prev, recent_song_path should update correctly
+        assert sq.recent_song_path == "prev_song.mp3", "recent_song_path should update to prev_song_path"
+        assert sq.prev_song_path == "old_song.mp3", "prev_song_path should update to old_song_path"
+        assert sq.old_song_path == "", "old_song_path should be cleared"
+
+        # Test put_first - add some songs then put one at front
+        sq.clear_queue()
+        sq.add_to_queue("songA.mp3")
+        sq.add_to_queue("songB.mp3")
+        sq.put_first("songFront.mp3")
+
+        # Get songs one by one, first should be "songFront.mp3"
+        first_song = sq.get_song("next")
+        second_song = sq.get_song("next")
+        third_song = sq.get_song("next")  # Should block but we won't wait infinitely here
+
+        assert first_song == "songFront.mp3", "put_first did not put song at the front"
+        assert second_song == "songA.mp3", "Second song should be 'songA.mp3'"
+        assert third_song == "songB.mp3", "Third song should be 'songB.mp3'"
+
+        # Test update_previous resets pointers and queue
+        sq.recent_song_path = "recent.mp3"
+        sq.prev_song_path = "prev.mp3"
+        sq.old_song_path = "old.mp3"
+        sq.update_previous()
+
+        assert sq.prev_song_path == "old.mp3", "prev_song_path not updated correctly"
+        assert sq.old_song_path == "", "old_song_path should be cleared"
+
+        # Clear queue and check variables
+        sq.clear_queue()
+        assert sq.recent_song_path == "", "recent_song_path not cleared"
+        assert sq.prev_song_path == "", "prev_song_path not cleared"
+        assert sq.old_song_path == "", "old_song_path not cleared"
+        assert sq.my_queue.empty(), "Queue should be empty after clear"
+
+        print("All SongsQueue tests passed successfully.")
