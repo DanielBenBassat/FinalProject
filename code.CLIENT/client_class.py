@@ -573,7 +573,7 @@ class Client:
             self.client_log.debug(f"Exception during exit: {e}")
             print(f"Error during client exit: {e}")
 
-    def play_playlist(self, playlist):
+    def setup_playlist(self, playlist):
         """
         Clears the current queue and starts playing the given playlist.
 
@@ -584,9 +584,6 @@ class Client:
             self.client_log.debug("Starting playlist playback.")
             self.q.clear_queue()
             self.client_log.debug("Cleared current queue.")
-
-            self.p.stop_song()
-            self.client_log.debug("Stopped any currently playing song.")
 
             for song in playlist:
                 self.listen_song(song)
@@ -677,6 +674,7 @@ class Client:
                 self.player_log.debug("nothing to play")
                 self.client_to_gui_queue.put("nothing to play")
                 break
+        self.player_log.debug(self.q.my_queue.empty())
         self.player_log.debug("play loop has finished")
 
     def queue_logging(self):

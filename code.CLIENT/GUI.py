@@ -636,7 +636,10 @@ class UserInterface:
         :param playlist: List or collection of song IDs to play.
         """
         try:
-            self.client.play_playlist(playlist)
+            self.client.setup_playlist(playlist)
+            if self.playing:
+                self.playing = False
+            self.counter = 0
             self.play_pause()
         except Exception as e:
             logging.debug(f"Error in play_playlist: {e}")
@@ -936,7 +939,7 @@ class UserInterface:
         """
         try:
             result = self.client.client_to_gui_queue.get_nowait()
-            logging.debug("Result from thread:", result)
+            logging.debug("Result from thread:" + result)
             if result == "nothing to play":
                 self.playing = False
                 self.play_pause_button.config(text="▶")
